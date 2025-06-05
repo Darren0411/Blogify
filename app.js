@@ -12,7 +12,6 @@ const session = require("express-session");
 
 const app = express();
 const PORT = process.env.PORT;
-
 mongoose
   .connect(process.env.MONGO_URL)
   .then((e) => console.log("mongoDb connected"));

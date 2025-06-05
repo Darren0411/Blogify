@@ -6,6 +6,7 @@ const { sendOTP, verifyOTP } = require("../utils/otpService");
 const router = express.Router();
 
 
+
 router.get("/signin",(req,res)=>{
     res.render("signin");
 });

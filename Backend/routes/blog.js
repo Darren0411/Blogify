@@ -8,26 +8,11 @@ const { v2: cloudinary } = require('cloudinary');
 
 const router = express.Router();
 
-// const storage = multer.diskStorage({
-//     destination: function (req, file, cb) {
-//       cb(null, path.resolve(`./public/uploads/`));
-//     },
-//     filename: function (req, file, cb) {
-//       const fileName = `${Date.now()}-${file.originalname}`;
-//       cb(null,fileName);
-//     },
-//   });
-
  const storage = multer.memoryStorage();
  const upload = multer({ storage: storage });
 
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
+ cloudinary.config(process.env.CLOUDINARY_URL);
 
 router.get("/add-new",(req,res)=>{
     return res.render("addBlog",{

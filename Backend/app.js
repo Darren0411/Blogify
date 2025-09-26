@@ -11,9 +11,10 @@ const session = require("express-session");
 
 
 const app = express();
-const PORT = process.env.PORT;
 mongoose
-  .connect(process.env.MONGO_URL)
+  .connect(process.env.MONGO_URL,{ 
+    dbName: "Blogify",
+  })
   .then((e) => console.log("mongoDb connected"));
 
 app.set("view engine", "ejs");
@@ -26,14 +27,14 @@ app.use(checkforAuthenticationCookie("token"));
 app.use(express.static(path.resolve("./public")));
 app.use(
   session({
-    secret: "$riona@123",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
     cookie: { secure: false }, 
   })
 );
 app.get("/", async(req, res) => {
-  const allBlogs = await Blog.find({});
+  const allBlogs = await Blog.find({});c
   res.render("home",{
     user: req.user,
     blogs:allBlogs
@@ -42,6 +43,7 @@ app.get("/", async(req, res) => {
 app.use("/user", userRoute);
 app.use("/blog",blogRoute);
 
-app.listen(PORT, () => {
-  console.log(`server is running on port ${PORT}`);
+const PORT = 3000;
+app.listen(PORT,() => {
+  console.log(`✅ Server running on port ${PORT}`);
 });

@@ -60,8 +60,6 @@ userSchema.static("matchPasswordAndGenerateToken", async function(email,password
    .digest("hex");
 
    if(hashedPassword !== userProvidedHash) throw new Error("Incorrect Password");
-//    return {...user,password:undefined,salt:undefined};
-    // return user;
     const token = createTokenForUser(user);
     return token;
 });   

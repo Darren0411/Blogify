@@ -34,7 +34,7 @@ app.use(
   })
 );
 app.get("/", async(req, res) => {
-  const allBlogs = await Blog.find({});c
+  const allBlogs = await Blog.find({});
   res.render("home",{
     user: req.user,
     blogs:allBlogs

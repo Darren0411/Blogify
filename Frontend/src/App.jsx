@@ -25,7 +25,7 @@ function App() {
               <Route path="/blog/:id" element={<BlogDetail />} />
             </Routes>
           </main>
-          <Footer/>
+          <Footer />
         </div>
       </Router>
     </AuthProvider>

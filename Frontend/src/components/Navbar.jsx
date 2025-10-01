@@ -124,15 +124,15 @@ const Navbar = () => {
                 </Link>
 
                 <Link 
-                  to="/explore" 
+                  to="/add-blog" 
                   className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-300 ${
-                    isActiveRoute('/explore') 
+                    isActiveRoute('/add-blog') 
                       ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-lg' 
                       : 'text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-700/70 hover:text-purple-600'
                   }`}
                 >
                   <BookOpenIcon className="h-4 w-4" />
-                  <span>Explore</span>
+                  <span>Add Blog</span>
                 </Link>
               </div>
 

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarIcon, UserIcon, ArrowRightIcon, SearchIcon, BookOpenIcon, FilterIcon } from 'lucide-react';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 const Home = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -78,6 +80,7 @@ const Home = () => {
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-white via-gray-50 to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+     <Navbar />
       {/* Hero Section - Full Width */}
       <div className="w-full relative bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 dark:from-purple-800 dark:via-indigo-800 dark:to-blue-800 text-white overflow-hidden">
         {/* Dark mode overlay */}
@@ -228,6 +231,7 @@ const Home = () => {
           )}
         </div>
       </div>
+      <Footer/>
     </div>
   );
 };

@@ -1,79 +1,152 @@
-const express = require("express");
-const multer  = require('multer')
-const Blog = require("../models/blog");
-const path = require("path");
-const   Comment = require("../models/comment");
-const { v2: cloudinary } = require('cloudinary');
-
+import express from 'express';
+import multer from 'multer';
+import '../models/user.js';
+import { v2 as cloudinary } from 'cloudinary';
+import Blog from '../models/blog.js';
+import Comment from '../models/comment.js';
 
 const router = express.Router();
 
- const storage = multer.memoryStorage();
- const upload = multer({ storage: storage });
+// Multer (memory) for direct Cloudinary upload
+const upload = multer({ storage: multer.memoryStorage() });
 
+// Cloudinary config (supports CLOUDINARY_URL or individual vars)
+if (process.env.CLOUDINARY_URL) {
+  cloudinary.config(process.env.CLOUDINARY_URL);
+} else {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_KEY,
+    api_secret: process.env.CLOUDINARY_SECRET,
+  });
+}
 
- cloudinary.config(process.env.CLOUDINARY_URL);
+// Helper: ensure auth
+function requireAuth(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Authentication required' });
+  }
+  next();
+}
 
-router.get("/add-new",(req,res)=>{
-    return res.render("addBlog",{
-        user:req.user
-    });
-});
-
-router.post("/comments/:blogId",async(req,res)=>{
-      await Comment.create({
-      content:req.body.content,
-      blogId:req.params.blogId,
-      createdBy:req.user._id,
-    });
-    return res.redirect(`/blog/${req.params.blogId}`);
-});
-
-
-router.get("/:id",async (req,res)=>{
-  const blog = await Blog.findById(req.params.id).populate("createdBy");
-  const comments = await Comment.find({blogId: req.params.id}).populate("createdBy");
-  return res.render("blog",{
-    user:req.user,
-    blog,
-    comments,
-  })
-});
-
-router.post("/",upload.single("coverImage"), async (req,res)=> {
+router.post('/', requireAuth, upload.single('coverImage'), async (req, res) => {
   try {
     const { title, body } = req.body;
+    if (!title || !body) {
+      return res.status(400).json({ success: false, message: 'Title and body are required' });
+    }
 
-    // Upload to Cloudinary
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: "blogs",
-        resource_type: "image",
-      },
-      async (error, result) => {
-        if (error) {
-          console.error("Cloudinary upload error:", error);
-          return res.status(500).json({ error: "Image upload failed" });
-        }
-        const resizedUrl = result.secure_url.replace("/upload/", "/upload/w_400,h_300,c_fill/");
-       
-        const blog = await Blog.create({
-          title,
-          body,
-          createdBy: req.user._id,
-          coverImageURL: resizedUrl, 
-        });
+    let coverImageURL = '';
 
-        return res.redirect(`/`);
-      }
-    );
+    if (req.file) {
+      // Upload stream to Cloudinary
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: 'blogs',
+            resource_type: 'image',
+          },
+            (error, uploaded) => {
+            if (error) return reject(error);
+            resolve(uploaded);
+          }
+        );
+        stream.end(req.file.buffer);
+      });
+      coverImageURL = result.secure_url.replace('/upload/', '/upload/w_800,c_fill/');
+    }
 
-    stream.end(req.file.buffer);
+    const blog = await Blog.create({
+      title,
+      body,
+      createdBy: req.user._id,
+      coverImageURL,
+    });
 
+    const populated = await blog.populate('createdBy', 'fullName ProfileUrl');
+
+    return res.status(201).json({
+      success: true,
+      blog: populated,
+      message: 'Blog created',
+    });
   } catch (err) {
-    console.error("Server error:", err);
-    res.status(500).json({ error: "Something went wrong" });
+    console.error('Create blog error:', err);
+    res.status(500).json({ success: false, message: 'Failed to create blog' });
   }
 });
 
-module.exports = router;
+router.get('/:id', async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.id)
+      .populate('createdBy', 'fullName ProfileUrl');
+    if (!blog) {
+      return res.status(404).json({ success: false, message: 'Blog not found' });
+    }
+
+    // Optional: increment views
+    blog.views = (blog.views || 0) + 1;
+    await blog.save();
+
+    const comments = await Comment.find({ blogId: blog._id })
+      .sort({ createdAt: 1 })
+      .populate('createdBy', 'fullName ProfileUrl');
+
+    res.json({
+      success: true,
+      blog,
+      comments,
+    });
+  } catch (err) {
+    console.error('Fetch blog error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch blog' });
+  }
+});
+
+router.get('/:id/comments', async (req, res) => {
+  try {
+    const comments = await Comment.find({ blogId: req.params.id })
+      .sort({ createdAt: 1 })
+      .populate('createdBy', 'fullName ProfileUrl');
+    res.json({ success: true, comments });
+  } catch (err) {
+    console.error('Fetch comments error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch comments' });
+  }
+});
+
+router.post('/:id/comments', requireAuth, async (req, res) => {
+  try {
+    const { content } = req.body;
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, message: 'Content is required' });
+    }
+
+    const blog = await Blog.findById(req.params.id);
+    if (!blog) return res.status(404).json({ success: false, message: 'Blog not found' });
+
+    const comment = await Comment.create({
+      content: content.trim(),
+      blogId: blog._id,
+      createdBy: req.user._id,
+    });
+
+    const populated = await comment.populate('createdBy', 'fullName ProfileUrl');
+
+    res.status(201).json({
+      success: true,
+      comment: populated,
+      message: 'Comment added',
+    });
+  } catch (err) {
+    console.error('Add comment error:', err);
+    res.status(500).json({ success: false, message: 'Failed to add comment' });
+  }
+});
+
+router.post('/comments/:blogId', requireAuth, async (req, res) => {
+  req.params.id = req.params.blogId; 
+  return router.handle({ ...req, url: `/${req.params.blogId}/comments`, method: 'POST' }, res);
+});
+
+export default router;

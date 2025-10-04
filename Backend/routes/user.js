@@ -1,111 +1,107 @@
-const express = require("express");
-const User = require("../models/user");
-const { sendOTP, verifyOTP } = require("../utils/otpService");
-
+import express from 'express';
+import User from '../models/user.js';
+import { sendOTP, verifyOTP } from '../utils/otpService.js';
 
 const router = express.Router();
 
+router.post('/signup', async (req, res) => {
+  try {
+    const { fullName, email, password } = req.body;
+    if (!fullName || !email || !password)
+      return res.status(400).json({ success: false, message: 'All fields required' });
 
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(409).json({ success: false, message: 'Email already registered' });
 
-router.get("/signin",(req,res)=>{
-    res.render("signin");
+    const user = await User.create({ fullName, email, password });
+    res.status(201).json({ success: true, user });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
 });
 
-router.get("/signup",(req,res)=>{
-    res.render("signup");
+router.post('/signin', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password)
+      return res.status(400).json({ success: false, message: 'Email and password required' });
+
+    const { token, user } = await User.matchPasswordAndGenerateToken(email, password);
+
+    res
+      .cookie('token', token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 24 * 60 * 60 * 1000,
+      })
+      .json({ success: true, token, user });
+  } catch (e) {
+    res.status(401).json({ success: false, message: e.message });
+  }
 });
 
-router.get("/logout",(req,res)=>{
-    res.clearCookie("token").redirect("/user/signin")
+router.post('/logout', (req, res) => {
+  res.clearCookie('token').json({ success: true, message: 'Logged out' });
 });
 
-router.get("/forgotPass",(req,res)=>{
-  res.render("forgotPass");
-});
-
-router.get("/verifyOTP",(req,res)=>{
-  res.render("otp");
-});
-
-router.get("/resetPass",(req,res)=>{
-  res.render("resetPass");
-});
-
-
-
-router.post("/signin",async (req,res)=>{
-  const {email,password} = req.body;
-try {
-  const token = await User.matchPasswordAndGenerateToken(email,password);
-  return res.cookie("token",token).redirect("/");
-} catch (error) {
-  res.render("signin",{error:error.message});
-}
-});
-
-router.post("/forgotPass", async (req, res) => {
+router.post('/forgotPass', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) throw new Error("Email is required");
+    if (!email) return res.status(400).json({ success: false, message: 'Email required' });
 
     const user = await User.findOne({ email });
-    if (!user) throw new Error("No account found with this email");
+    if (!user) return res.status(404).json({ success: false, message: 'No account with this email' });
 
-    const otpDetails = {
+    await sendOTP({
       email,
-      subject: "Password Reset",
-      message: "Enter the verification code below to reset your password",
-      duration: 5, // OTP valid for 5 minutes
-    };
+      subject: 'Password Reset',
+      message: 'Use this OTP to reset your password',
+      duration: 5,
+    });
 
-    const createdOTP = await sendOTP(otpDetails);
     req.session.email = email;
-   res.redirect("/user/verifyOTP")
-  } catch (error) {
-    res.render("forgotPass", { error: error.message });
+    res.json({ success: true, message: 'OTP sent' });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
   }
 });
 
-
-router.post("/verifyOTP", async (req, res) => {
+router.post('/verifyOTP', async (req, res) => {
   try {
-    const {otp} = req.body;
+    const { otp } = req.body;
     const email = req.session.email;
-    if (!otp) throw new Error("OTP is required");
+    if (!otp) return res.status(400).json({ success: false, message: 'OTP required' });
+    if (!email) return res.status(400).json({ success: false, message: 'Session expired' });
 
-    const isVerified = await verifyOTP(email,otp);
-    if (!isVerified) throw new Error("Invalid or expired OTP");
+    const ok = await verifyOTP(email, otp);
+    if (!ok) return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
 
-    res.redirect("/user/resetPass");
-  } catch (error) {
-    res.render("forgotPass", { error: error.message });
+    res.json({ success: true, message: 'OTP verified' });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
   }
 });
 
-router.post("/resetPass", async (req, res) => {
+router.post('/resetPass', async (req, res) => {
+  try {
     const { password } = req.body;
     const email = req.session.email;
-
-    try {
-      if (!password) throw new Error("password is required");
-      const user = await User.findOne({email});
-      user.password = password;
-      await user.save();
-      res.redirect("/user/signin");
-    } catch (error) {
-      res.render("resetPass",{error:error.message});
-    }
+    if (!email) return res.status(400).json({ success: false, message: 'Session expired' });
+    if (!password) return res.status(400).json({ success: false, message: 'Password required' });
+    const user = await User.findOne({ email });
+    user.password = password;
+    await user.save();
+    req.session.email = null;
+    res.json({ success: true, message: 'Password updated' });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
 });
 
-router.post("/signup",async (req,res)=>{
-    const {fullName,email,password} = req.body;   
-    await User.create({
-        fullName,
-        email,
-        password,
-    });
-   return res.redirect("/user/signin");
+router.get('/me', (req, res) => {
+  if (!req.user) return res.status(401).json({ success: false, message: 'Not authenticated' });
+  res.json({ success: true, user: req.user });
 });
 
-
-module.exports = router;
+export default router;

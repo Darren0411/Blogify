@@ -1,46 +1,47 @@
-const nodemailer = require("nodemailer");
-const OTPStore = new Map(); // Temporary store for OTPs (Use Redis or DB for production)
-const crypto = require("crypto");
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
+
+const OTPStore = new Map(); // In-memory (use Redis/DB in production)
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  service: 'gmail',
   auth: {
-    user: "darrendsa90@gmail.com", // Your email
-    pass:"ntxb lhov rxen tlee", // Your email password
+    user: process.env.EMAIL_USER,         // set in .env
+    pass: process.env.EMAIL_PASS,         // app password
   },
 });
 
-// 1. Generate & send OTP
-async function sendOTP({ email, subject, message, duration }) {
-  const otp = crypto.randomInt(100000, 999999).toString(); // Generate 6-digit OTP
-  const expiresAt = Date.now() + duration * 60 * 1000; // Expiry time
-
+/**
+ * Send OTP to email
+ * @param {Object} param0
+ * @param {string} param0.email
+ * @param {string} param0.subject
+ * @param {string} param0.message
+ * @param {number} param0.duration  minutes
+ */
+export async function sendOTP({ email, subject, message, duration = 5 }) {
+  const otp = crypto.randomInt(100000, 999999).toString();
+  const expiresAt = Date.now() + duration * 60 * 1000;
   OTPStore.set(email, { otp, expiresAt });
 
-  const mailOptions = {
-    from:"darrendsa90@gmail.com",
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
     to: email,
     subject,
-    text: `${message}\nYour OTP is: ${otp}\nThis OTP is valid for ${duration} minutes.`,
-  };
+    text: `${message}\nYour OTP: ${otp}\nValid for ${duration} minutes.`,
+  });
 
-  await transporter.sendMail(mailOptions);
-  return { success: true, message: "OTP sent successfully" };
+  return { success: true };
 }
 
-// 2. Verify OTP
-async function verifyOTP(email,otp) {
-  const otpData = OTPStore.get(email);
-
-  if (!otpData) return false;
-  if (otpData.expiresAt < Date.now()) {
-    OTPStore.delete(email); // Remove expired OTP
+export async function verifyOTP(email, otp) {
+  const data = OTPStore.get(email);
+  if (!data) return false;
+  if (data.expiresAt < Date.now()) {
+    OTPStore.delete(email);
     return false;
   }
-  if (otpData.otp !== otp) return false;
-
-  OTPStore.delete(email); // OTP is valid, remove from store
+  if (data.otp !== otp) return false;
+  OTPStore.delete(email);
   return true;
 }
-
-module.exports = { sendOTP, verifyOTP };

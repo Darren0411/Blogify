@@ -1,5 +1,7 @@
-const JWT = require("jsonwebtoken");
-require("dotenv").config();
+import jwt from 'jsonwebtoken'
+import dotenv from 'dotenv';
+dotenv.config();
+
 
 const secret = process.env.SESSION_SECRET;
 
@@ -11,17 +13,17 @@ function createTokenForUser(user){
         ProfileUrl:user.ProfileUrl,
         role : user.role,
     };
-    const token = JWT.sign(payload,secret);
+    const token = jwt.sign(payload,secret);
     return token;
 }
 
 function validateUser(token){
-    const payload = JWT.verify(token,secret);
+    const payload = jwt.verify(token,secret);
     return payload;
 }
 
 
-module.exports = {
+export {
     createTokenForUser,
     validateUser,
 }

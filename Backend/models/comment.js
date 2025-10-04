@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const commentSchema = new mongoose.Schema({
    content:{
@@ -11,15 +11,15 @@ const commentSchema = new mongoose.Schema({
     ref:"blog",
    },
 
-   createdBy:{
-    type:mongoose.Schema.Types.ObjectId,
-    ref:"user",
-    required:true,
-   }
+createdBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'User', 
+  required: true,
+},
 
 },{timestamps:true});
 
 
-const Comment = mongoose.model("comment",commentSchema);
+const Comment = mongoose.model("Comment",commentSchema);
 
-module.exports = Comment;
+export default Comment;

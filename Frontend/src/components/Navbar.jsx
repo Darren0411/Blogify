@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthProvider';
+import axios from 'axios';
 import { 
   PenToolIcon, 
   HomeIcon, 
@@ -18,14 +18,123 @@ import {
   MoonIcon
 } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4500';
+
 const Navbar = () => {
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  // Profile Avatar Component with proper image handling
+  const ProfileAvatar = ({ user, size = 'w-10 h-10', textSize = 'text-sm' }) => {
+    const [imageError, setImageError] = useState(false);
+    const [imageLoaded, setImageLoaded] = useState(false);
+    
+    const initials = user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
+    
+    // Get profile picture URL
+    const getProfilePicUrl = () => {
+      if (!user?.ProfileUrl || user.ProfileUrl === '/images/default.webp') {
+        return null; // No custom profile picture
+      }
+      
+      // If it's already a full URL, use it
+      if (user.ProfileUrl.startsWith('http')) {
+        return user.ProfileUrl;
+      }
+      
+      // If it's a relative path, prepend the API base URL
+      return `${API_BASE_URL}${user.ProfileUrl}`;
+    };
+
+    const profilePicUrl = getProfilePicUrl();
+
+    // If no profile picture URL or image failed to load, show initials
+    if (!profilePicUrl || imageError) {
+      return (
+        <div className={`${size} bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold ${textSize} shadow-lg`}>
+          {initials}
+        </div>
+      );
+    }
+
+    // Show profile picture
+    return (
+      <div className={`${size} rounded-full overflow-hidden shadow-lg bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center`}>
+        <img
+          src={profilePicUrl}
+          alt={user?.fullName || 'User'}
+          className="w-full h-full object-cover"
+          onError={() => {
+            console.log('Image failed to load:', profilePicUrl);
+            setImageError(true);
+          }}
+          onLoad={() => {
+            console.log('Image loaded successfully:', profilePicUrl);
+            setImageLoaded(true);
+            setImageError(false);
+          }}
+        />
+        {/* Fallback initials while image is loading */}
+        {!imageLoaded && !imageError && (
+          <div className="absolute inset-0 flex items-center justify-center text-white font-bold">
+            {initials}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Fetch user details
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        // First check localStorage for quick UI update
+        const storedUser = localStorage.getItem('user');
+        const isLoggedIn = localStorage.getItem('loggedIn') === 'true';
+        
+        if (storedUser && isLoggedIn) {
+          const parsedUser = JSON.parse(storedUser);
+          console.log('User from localStorage:', parsedUser);
+          setUser(parsedUser);
+        }
+
+        // Then verify with backend (cookie-based auth)
+        const response = await axios.get(`${API_BASE_URL}/user/me`, {
+          withCredentials: true,
+          headers: { Accept: 'application/json' }
+        });
+
+        if (response.data?.success && response.data.user) {
+          console.log('User from backend:', response.data.user);
+          setUser(response.data.user);
+          // Update localStorage with fresh data
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+          localStorage.setItem('loggedIn', 'true');
+        } else {
+          // Clear if no valid user
+          setUser(null);
+          localStorage.removeItem('user');
+          localStorage.removeItem('loggedIn');
+        }
+      } catch (error) {
+        console.error('Auth error:', error);
+        // If 401/403, user is not authenticated
+        setUser(null);
+        localStorage.removeItem('user');
+        localStorage.removeItem('loggedIn');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   // Handle scroll effect
   useEffect(() => {
@@ -36,11 +145,10 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Dark mode logic - Default to dark, switch to light
+  // Dark mode logic
   useEffect(() => {
-    // Check if user has a saved preference, otherwise default to dark
     const savedMode = localStorage.getItem('darkMode');
-    const isDark = savedMode === null ? true : savedMode === 'true'; // Default to true (dark) if no saved preference
+    const isDark = savedMode === null ? true : savedMode === 'true';
     
     setIsDarkMode(isDark);
     
@@ -59,23 +167,52 @@ const Navbar = () => {
     localStorage.setItem('darkMode', newMode.toString());
     
     if (newMode) {
-      // Switching to dark mode
       document.documentElement.classList.add('dark');
       document.documentElement.classList.remove('light');
     } else {
-      // Switching to light mode
       document.documentElement.classList.remove('dark');
       document.documentElement.classList.add('light');
     }
   };
 
   const handleLogout = async () => {
-    await logout();
+    try {
+      await axios.post(`${API_BASE_URL}/user/logout`, {}, { withCredentials: true });
+    } catch (e) {
+      // silent fail - cookie might already be cleared
+    }
+    
+    // Clear user state and localStorage
+    setUser(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('loggedIn');
+    
     navigate('/');
     setIsProfileOpen(false);
   };
 
   const isActiveRoute = (path) => location.pathname === path;
+
+  // Show loading state briefly
+  if (isLoading) {
+    return (
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <Link to="/" className="flex items-center space-x-3">
+              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-3 rounded-2xl">
+                <PenToolIcon className="h-6 w-6 text-white" />
+              </div>
+              <span className="hidden sm:block text-2xl font-black bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 bg-clip-text text-transparent">
+                ThoughtSphere
+              </span>
+            </Link>
+            <div className="animate-pulse bg-gray-300 dark:bg-gray-700 h-10 w-32 rounded-lg"></div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <>
@@ -123,17 +260,19 @@ const Navbar = () => {
                   <span>Home</span>
                 </Link>
 
-                <Link 
-                  to="/add-blog" 
-                  className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-300 ${
-                    isActiveRoute('/add-blog') 
-                      ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-lg' 
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-700/70 hover:text-purple-600'
-                  }`}
-                >
-                  <BookOpenIcon className="h-4 w-4" />
-                  <span>Add Blog</span>
-                </Link>
+                {user && (
+                  <Link 
+                    to="/add-blog" 
+                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-300 ${
+                      isActiveRoute('/add-blog') 
+                        ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-lg' 
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-700/70 hover:text-purple-600'
+                    }`}
+                  >
+                    <BookOpenIcon className="h-4 w-4" />
+                    <span>Add Blog</span>
+                  </Link>
+                )}
               </div>
 
               {/* Search Bar */}
@@ -160,7 +299,6 @@ const Navbar = () => {
                       <MoonIcon className="h-6 w-6 text-gray-700 group-hover:text-indigo-600 group-hover:rotate-12 group-hover:scale-110 transition-all duration-300" />
                     )}
                   </div>
-                  {/* Status indicator */}
                   <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white dark:border-gray-800 transition-all duration-300 ${
                     isDarkMode ? 'bg-indigo-500 shadow-indigo-200' : 'bg-yellow-400 shadow-yellow-200'
                   } shadow-lg`}></div>
@@ -195,8 +333,8 @@ const Navbar = () => {
                     >
                       <div className="relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full blur opacity-75"></div>
-                        <div className="relative w-10 h-10 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                          {user?.fullName?.charAt(0) || 'U'}
+                        <div className="relative">
+                          <ProfileAvatar user={user} />
                         </div>
                       </div>
                       <div className="hidden xl:block text-left">
@@ -210,12 +348,10 @@ const Navbar = () => {
 
                     {/* Profile Dropdown Menu */}
                     {isProfileOpen && (
-                      <div className="absolute right-0 mt-3 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/20 py-2 z-50 animate-in slide-in-from-top-2 duration-200">
+                      <div className="absolute right-0 mt-3 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/20 py-2 z-50 opacity-100 transition-opacity duration-200">
                         <div className="px-6 py-4 border-b border-gray-100/50 dark:border-gray-700/50">
                           <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold">
-                              {user?.fullName?.charAt(0) || 'U'}
-                            </div>
+                            <ProfileAvatar user={user} size="w-12 h-12" textSize="text-base" />
                             <div>
                               <p className="font-semibold text-gray-900 dark:text-white">{user?.fullName}</p>
                               <p className="text-sm text-gray-500 dark:text-gray-400">{user?.email}</p>
@@ -273,7 +409,6 @@ const Navbar = () => {
                   >
                     Sign In
                   </Link>
-                  {/* Get Started Button */}
                   <Link 
                     to="/signup" 
                     className="group relative overflow-hidden"
@@ -281,7 +416,6 @@ const Navbar = () => {
                     <div className="absolute inset-0 bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
                     <div className="relative bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 text-white px-8 py-3 rounded-2xl font-bold transition-all duration-300 transform group-hover:scale-105 group-hover:shadow-2xl hover:shadow-pink-500/25">
                       <span className="relative z-10 text-white">Get Started</span>
-                      {/* Animated shine effect */}
                       <div className="absolute inset-0 -top-2 -left-2 w-6 h-full bg-white/40 transform -skew-x-12 group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
                     </div>
                   </Link>
@@ -291,7 +425,6 @@ const Navbar = () => {
 
             {/* Mobile menu button & Dark mode */}
             <div className="lg:hidden flex items-center space-x-3">
-              {/* Mobile Dark Mode Toggle */}
               <button
                 onClick={toggleDarkMode}
                 className="p-3 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 shadow-lg border-2 border-gray-300 dark:border-gray-600"
@@ -315,7 +448,7 @@ const Navbar = () => {
 
           {/* Mobile Navigation */}
           {isMenuOpen && (
-            <div className="lg:hidden border-t border-gray-100/50 dark:border-gray-700/50 py-6 animate-in slide-in-from-top-2 duration-300">
+            <div className="lg:hidden border-t border-gray-100/50 dark:border-gray-700/50 py-6 opacity-100 transition-opacity duration-300">
               <div className="space-y-4">
                 {/* Mobile Search */}
                 <div className="relative mx-4">
@@ -342,76 +475,63 @@ const Navbar = () => {
                     <span className="font-medium">Home</span>
                   </Link>
 
-                  <Link 
-                    to="/explore" 
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
-                      isActiveRoute('/explore') 
-                        ? 'bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-700' 
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70'
-                    }`}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <BookOpenIcon className="h-5 w-5" />
-                    <span className="font-medium">Explore</span>
-                  </Link>
+                  {user && (
+                    <Link 
+                      to="/add-blog" 
+                      className={`flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
+                        isActiveRoute('/add-blog') 
+                          ? 'bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-700' 
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70'
+                      }`}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <BookOpenIcon className="h-5 w-5" />
+                      <span className="font-medium">Add Blog</span>
+                    </Link>
+                  )}
                 </div>
 
                 {user ? (
-                  <>
-                    <div className="mx-4">
+                  <div className="border-t border-gray-100/50 dark:border-gray-700/50 pt-4 mx-4">
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-2xl mb-3">
+                      <ProfileAvatar user={user} />
+                      <div>
+                        <p className="font-semibold text-gray-900 dark:text-white">{user?.fullName}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Writer</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
                       <Link 
-                        to="/add-blog" 
-                        className="flex items-center justify-center space-x-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-4 rounded-2xl font-semibold shadow-xl"
+                        to="/profile" 
+                        className="flex items-center space-x-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70 rounded-2xl transition-all duration-300"
                         onClick={() => setIsMenuOpen(false)}
                       >
-                        <PlusIcon className="h-5 w-5" />
-                        <span>Write Article</span>
+                        <UserIcon className="h-5 w-5" />
+                        <span className="font-medium">Profile</span>
                       </Link>
+
+                      <Link 
+                        to="/my-blogs" 
+                        className="flex items-center space-x-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70 rounded-2xl transition-all duration-300"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <BookOpenIcon className="h-5 w-5" />
+                        <span className="font-medium">My Articles</span>
+                      </Link>
+
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setIsMenuOpen(false);
+                        }}
+                        className="flex items-center space-x-3 px-4 py-3 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-2xl transition-all duration-300 w-full text-left"
+                      >
+                        <LogOutIcon className="h-5 w-5" />
+                        <span className="font-medium">Sign Out</span>
+                      </button>
                     </div>
-
-                    <div className="border-t border-gray-100/50 dark:border-gray-700/50 pt-4 mx-4">
-                      <div className="flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-2xl mb-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                          {user?.fullName?.charAt(0) || 'U'}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900 dark:text-white">{user?.fullName}</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Writer</p>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Link 
-                          to="/profile" 
-                          className="flex items-center space-x-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70 rounded-2xl transition-all duration-300"
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          <UserIcon className="h-5 w-5" />
-                          <span className="font-medium">Profile</span>
-                        </Link>
-
-                        <Link 
-                          to="/my-blogs" 
-                          className="flex items-center space-x-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70 rounded-2xl transition-all duration-300"
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          <BookOpenIcon className="h-5 w-5" />
-                          <span className="font-medium">My Articles</span>
-                        </Link>
-
-                        <button
-                          onClick={() => {
-                            handleLogout();
-                            setIsMenuOpen(false);
-                          }}
-                          className="flex items-center space-x-3 px-4 py-3 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-2xl transition-all duration-300 w-full text-left"
-                        >
-                          <LogOutIcon className="h-5 w-5" />
-                          <span className="font-medium">Sign Out</span>
-                        </button>
-                      </div>
-                    </div>
-                  </>
+                  </div>
                 ) : (
                   <div className="space-y-3 mx-4 pt-4 border-t border-gray-100/50 dark:border-gray-700/50">
                     <Link 

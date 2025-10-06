@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthProvider';
+import axios from 'axios';
 import { 
   UserIcon, 
   MailIcon, 
@@ -11,11 +11,11 @@ import {
   CheckCircleIcon,
   ArrowRightIcon
 } from 'lucide-react';
-import Footer from '../components/Footer';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4500';
 
 const Signup = () => {
   const navigate = useNavigate();
-  const { signup } = useAuth();
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -57,8 +57,8 @@ const Signup = () => {
     
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+    } else if (formData.password.length < 4) {
+      newErrors.password = 'Password must be at least 4 characters';
     }
     
     setErrors(newErrors);
@@ -67,27 +67,53 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
     
     setIsLoading(true);
+    setErrors(prev => ({ ...prev, submit: '' }));
     
     try {
-      // TODO: Replace with actual API call
-      console.log('Signup attempt:', formData);
+      const payload = {
+        fullName: formData.fullName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password
+      };
+
+      const res = await axios.post(
+        `${API_BASE_URL}/user/signup`, 
+        payload, 
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          }
+        }
+      );
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (res.data?.success) {
+        // Store user info in localStorage for UI purposes
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        localStorage.setItem('loggedIn', 'true');
+        
+        console.log('Signup successful:', res.data);
+        navigate('/login');
+      } else {
+        setErrors({ submit: res.data?.message || 'Signup failed' });
+      }
+    } catch (err) {
+      console.error('Signup error:', err);
       
-      // Mock successful signup
-      await signup(formData);
-      navigate('/');
-      
-    } catch (error) {
-      console.error('Signup error:', error);
-      setErrors({ submit: 'Account creation failed. Please try again.' });
+      // Handle specific error cases
+      if (err.response?.status === 409) {
+        setErrors({ submit: 'This email is already registered. Try signing in instead.' });
+      } else if (err.response?.status === 400) {
+        setErrors({ submit: err.response.data?.message || 'Please check all fields and try again.' });
+      } else {
+        setErrors({
+          submit: err.response?.data?.message || 'Unable to create account. Please try again.'
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -137,6 +163,7 @@ const Signup = () => {
                 value={formData.fullName}
                 onChange={handleInputChange}
                 placeholder="Enter your full name"
+                autoComplete="name"
                 className={`w-full px-4 py-4 border-2 rounded-2xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-4 transition-all duration-300 ${
                   errors.fullName 
                     ? 'border-red-300 dark:border-red-600 focus:border-red-500 dark:focus:border-red-400 focus:ring-red-500/20 dark:focus:ring-red-400/20' 
@@ -160,6 +187,7 @@ const Signup = () => {
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="Enter your email"
+                autoComplete="email"
                 className={`w-full px-4 py-4 border-2 rounded-2xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-4 transition-all duration-300 ${
                   errors.email 
                     ? 'border-red-300 dark:border-red-600 focus:border-red-500 dark:focus:border-red-400 focus:ring-red-500/20 dark:focus:ring-red-400/20' 
@@ -184,6 +212,7 @@ const Signup = () => {
                   value={formData.password}
                   onChange={handleInputChange}
                   placeholder="Create a password"
+                  autoComplete="new-password"
                   className={`w-full px-4 py-4 pr-12 border-2 rounded-2xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-4 transition-all duration-300 ${
                     errors.password 
                       ? 'border-red-300 dark:border-red-600 focus:border-red-500 dark:focus:border-red-400 focus:ring-red-500/20 dark:focus:ring-red-400/20' 
@@ -246,6 +275,16 @@ const Signup = () => {
             {errors.submit && (
               <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl">
                 <p className="text-red-600 dark:text-red-400 text-center text-sm">{errors.submit}</p>
+                {errors.submit.includes('already registered') && (
+                  <div className="mt-2 text-center">
+                    <Link 
+                      to="/login" 
+                      className="text-purple-600 dark:text-purple-400 hover:underline font-semibold text-sm"
+                    >
+                      Sign in instead →
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
 

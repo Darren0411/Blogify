@@ -6,7 +6,7 @@ import Login from "./Pages/Login";
 import Signup from "./Pages/Signup";
 import AddBlog from "./Pages/AddBlog";
 import BlogDetail from "./Pages/BlogDetail";
-import { AuthProvider } from "./contexts/AuthProvider";
+import { AuthProvider } from "./contexts/AuthContext";
 import PageNotFound from "./Pages/PageNotFound";
 
 function App() {
@@ -26,7 +26,7 @@ function App() {
           </main>
         </div>
       </Router>
-    </AuthProvider>
+   </AuthProvider>
   );
 }
 

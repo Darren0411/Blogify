@@ -12,10 +12,64 @@ import {
   ShareIcon,
   BookmarkIcon,
   CheckIcon,
-  CopyIcon
+  CopyIcon,
+  XIcon,
+  AlertCircleIcon,
+  CheckCircleIcon,
+  InfoIcon
 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4500';
+
+// Toast Component
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const getToastStyles = () => {
+    switch (type) {
+      case 'success':
+        return 'bg-green-500 text-white';
+      case 'error':
+        return 'bg-red-500 text-white';
+      case 'info':
+        return 'bg-blue-500 text-white';
+      default:
+        return 'bg-gray-800 text-white';
+    }
+  };
+
+  const getIcon = () => {
+    switch (type) {
+      case 'success':
+        return <CheckCircleIcon className="h-5 w-5" />;
+      case 'error':
+        return <AlertCircleIcon className="h-5 w-5" />;
+      case 'info':
+        return <InfoIcon className="h-5 w-5" />;
+      default:
+        return <InfoIcon className="h-5 w-5" />;
+    }
+  };
+
+  return (
+    <div className={`fixed top-24 right-4 z-50 flex items-center space-x-3 px-6 py-4 rounded-lg shadow-2xl transform transition-all duration-300 animate-slide-in ${getToastStyles()}`}>
+      {getIcon()}
+      <span className="font-medium">{message}</span>
+      <button
+        onClick={onClose}
+        className="ml-4 hover:bg-white/20 rounded-full p-1 transition-colors"
+      >
+        <XIcon className="h-4 w-4" />
+      </button>
+    </div>
+  );
+};
 
 const BlogDetail = () => {
   const { id } = useParams();
@@ -33,6 +87,17 @@ const BlogDetail = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [toasts, setToasts] = useState([]);
+
+  // Toast functions
+  const showToast = (message, type = 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
 
   // Initialize dark mode on component mount
   useEffect(() => {
@@ -114,7 +179,7 @@ const BlogDetail = () => {
   // Handle save/unsave
   const handleSave = async () => {
     if (!user) {
-      alert('Please login to save this blog');
+      showToast('Please login to save this blog', 'error');
       return;
     }
 
@@ -129,12 +194,14 @@ const BlogDetail = () => {
 
       if (response.data?.success) {
         setIsSaved(response.data.saved);
-        // Show success message
-        alert(response.data.saved ? 'Blog saved!' : 'Blog removed from saved');
+        showToast(
+          response.data.saved ? 'Blog saved successfully!' : 'Blog removed from saved',
+          'success'
+        );
       }
     } catch (err) {
       console.error('Error saving blog:', err);
-      alert('Failed to save blog');
+      showToast('Failed to save blog', 'error');
     } finally {
       setSaveLoading(false);
     }
@@ -145,12 +212,12 @@ const BlogDetail = () => {
     e.preventDefault();
     
     if (!user) {
-      alert('Please login to comment');
+      showToast('Please login to comment', 'error');
       return;
     }
 
     if (!commentContent.trim()) {
-      alert('Please enter a comment');
+      showToast('Please enter a comment', 'error');
       return;
     }
 
@@ -165,10 +232,11 @@ const BlogDetail = () => {
       if (response.data?.success) {
         setComments(prev => [...prev, response.data.comment]);
         setCommentContent('');
+        showToast('Comment posted successfully!', 'success');
       }
     } catch (err) {
       console.error('Error adding comment:', err);
-      alert('Failed to add comment');
+      showToast('Failed to add comment', 'error');
     } finally {
       setCommentLoading(false);
     }
@@ -177,7 +245,7 @@ const BlogDetail = () => {
   // Handle like/unlike
   const handleLike = async () => {
     if (!user) {
-      alert('Please login to like this blog');
+      showToast('Please login to like this blog', 'error');
       return;
     }
 
@@ -194,13 +262,15 @@ const BlogDetail = () => {
       if (!response.data?.success) {
         setIsLiked(isLiked);
         setLikeCount(prev => isLiked ? prev + 1 : prev - 1);
-        alert('Failed to update like');
+        showToast('Failed to update like', 'error');
+      } else {
+        showToast(isLiked ? 'Removed like' : 'Added like', 'success');
       }
     } catch (err) {
       setIsLiked(isLiked);
       setLikeCount(prev => isLiked ? prev + 1 : prev - 1);
       console.error('Error liking blog:', err);
-      alert('Failed to update like');
+      showToast('Failed to update like', 'error');
     }
   };
 
@@ -215,6 +285,7 @@ const BlogDetail = () => {
         try {
           await navigator.clipboard.writeText(blogUrl);
           setCopySuccess(true);
+          showToast('Link copied to clipboard!', 'success');
           setTimeout(() => setCopySuccess(false), 2000);
         } catch (err) {
           console.error('Failed to copy:', err);
@@ -225,6 +296,7 @@ const BlogDetail = () => {
           document.execCommand('copy');
           document.body.removeChild(textArea);
           setCopySuccess(true);
+          showToast('Link copied to clipboard!', 'success');
           setTimeout(() => setCopySuccess(false), 2000);
         }
         break;
@@ -234,6 +306,7 @@ const BlogDetail = () => {
           `https://twitter.com/intent/tweet?text=${encodeURIComponent(blogTitle)}&url=${encodeURIComponent(blogUrl)}`,
           '_blank'
         );
+        showToast('Opening Twitter...', 'info');
         break;
       
       case 'facebook':
@@ -241,6 +314,7 @@ const BlogDetail = () => {
           `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(blogUrl)}`,
           '_blank'
         );
+        showToast('Opening Facebook...', 'info');
         break;
       
       case 'linkedin':
@@ -248,6 +322,7 @@ const BlogDetail = () => {
           `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(blogUrl)}`,
           '_blank'
         );
+        showToast('Opening LinkedIn...', 'info');
         break;
       
       case 'whatsapp':
@@ -255,10 +330,12 @@ const BlogDetail = () => {
           `https://wa.me/?text=${encodeURIComponent(blogTitle + ' ' + blogUrl)}`,
           '_blank'
         );
+        showToast('Opening WhatsApp...', 'info');
         break;
       
       case 'email':
         window.location.href = `mailto:?subject=${encodeURIComponent(blogTitle)}&body=${encodeURIComponent(blogDescription + '\n\nRead more: ' + blogUrl)}`;
+        showToast('Opening email client...', 'info');
         break;
       
       default:
@@ -326,14 +403,27 @@ const BlogDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20">
+      {/* Toast Container */}
+      <div className="fixed top-0 right-0 z-50 space-y-2 p-4">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
+
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Back Button */}
+        {/* Back Button - Enhanced */}
         <button
           onClick={() => navigate('/')}
-          className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 mb-6 transition-colors"
+          className="group flex items-center space-x-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-xl mb-6 shadow-lg"
         >
-          <ArrowLeftIcon className="h-5 w-5" />
+          <ArrowLeftIcon className="h-5 w-5 group-hover:translate-x-[-2px] transition-transform duration-200" />
           <span>Back to Blogs</span>
+          <div className="absolute inset-0 rounded-xl bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
         </button>
 
         {/* Blog Content */}
@@ -570,6 +660,23 @@ const BlogDetail = () => {
           onClick={() => setShowShareMenu(false)}
         ></div>
       )}
+
+      <style jsx>{`
+        @keyframes slide-in {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 };

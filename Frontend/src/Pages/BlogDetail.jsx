@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 import { 
   CalendarIcon, 
   UserIcon, 
@@ -12,10 +13,65 @@ import {
   BookmarkIcon,
   EyeIcon,
   TagIcon,
-  ClockIcon
+  ClockIcon,
+  XIcon,
+  AlertCircleIcon,
+  CheckCircleIcon,
+  InfoIcon
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4500';
+
+// Toast Component
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const getToastStyles = () => {
+    switch (type) {
+      case 'success':
+        return 'bg-green-500 text-white';
+      case 'error':
+        return 'bg-red-500 text-white';
+      case 'info':
+        return 'bg-blue-500 text-white';
+      default:
+        return 'bg-gray-800 text-white';
+    }
+  };
+
+  const getIcon = () => {
+    switch (type) {
+      case 'success':
+        return <CheckCircleIcon className="h-5 w-5" />;
+      case 'error':
+        return <AlertCircleIcon className="h-5 w-5" />;
+      case 'info':
+        return <InfoIcon className="h-5 w-5" />;
+      default:
+        return <InfoIcon className="h-5 w-5" />;
+    }
+  };
+
+  return (
+    <div className={`fixed top-24 right-4 z-50 flex items-center space-x-3 px-6 py-4 rounded-lg shadow-2xl transform transition-all duration-300 animate-slide-in ${getToastStyles()}`}>
+      {getIcon()}
+      <span className="font-medium">{message}</span>
+      <button
+        onClick={onClose}
+        className="ml-4 hover:bg-white/20 rounded-full p-1 transition-colors"
+      >
+        <XIcon className="h-4 w-4" />
+      </button>
+    </div>
+  );
+};
 
 const BlogDetail = () => {
   const { id } = useParams();
@@ -27,113 +83,186 @@ const BlogDetail = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [likeLoading, setLikeLoading] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
+  const [toasts, setToasts] = useState([]);
 
-  // Mock blog data - replace with actual API call
+  // Toast functions
+  const showToast = (message, type = 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
+  // Fetch blog data
   useEffect(() => {
     const fetchBlogData = async () => {
       setIsLoading(true);
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const response = await axios.get(`${API_BASE_URL}/blog/${id}`);
         
-        // Mock data based on your blog model
-        const mockBlog = {
-          _id: id,
-          title: 'The Future of Artificial Intelligence in Healthcare',
-          body: `Artificial Intelligence is revolutionizing the healthcare industry in unprecedented ways. From diagnostic imaging to personalized treatment plans, AI is making healthcare more accurate, efficient, and accessible.
+        if (response.data?.success) {
+          setBlog(response.data.blog);
+          setComments(response.data.comments || []);
+          setLikeCount(response.data.blog.likes || 0);
+          
+          // Check if user has liked/saved this blog
+          if (user) {
+            // Check like status
+            try {
+              const likeResponse = await axios.get(`${API_BASE_URL}/blog/${id}/is-liked`, {
+                withCredentials: true,
+              });
+              if (likeResponse.data?.success) {
+                setLiked(likeResponse.data.liked);
+                setLikeCount(likeResponse.data.likes);
+              }
+            } catch (err) {
+              console.error('Error checking like status:', err);
+            }
 
-The integration of AI in healthcare has opened up possibilities that were once considered science fiction. Machine learning algorithms can now analyze medical images with greater accuracy than human radiologists in many cases, detecting early-stage cancers and other conditions that might be missed by the human eye.
-
-One of the most promising applications of AI in healthcare is in drug discovery. Traditional drug development can take decades and cost billions of dollars. AI is accelerating this process by predicting how different compounds will interact with the human body, potentially reducing development time from years to months.
-
-Personalized medicine is another area where AI is making significant strides. By analyzing a patient's genetic makeup, medical history, and lifestyle factors, AI can help doctors create treatment plans tailored specifically to individual patients. This approach not only improves treatment outcomes but also reduces the risk of adverse reactions.
-
-However, the implementation of AI in healthcare is not without challenges. Privacy concerns, data security, and the need for regulatory approval are significant hurdles that need to be addressed. Additionally, there's the important question of maintaining the human touch in healthcare while leveraging the power of AI.
-
-As we move forward, the collaboration between healthcare professionals and AI systems will be crucial. AI should augment human capabilities, not replace them. The future of healthcare lies in finding the perfect balance between technological advancement and human compassion.`,
-          coverImageURL: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
-          createdBy: {
-            _id: '1',
-            fullName: 'Dr. Sarah Johnson',
-            ProfileUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-          },
-          createdAt: '2024-09-25T10:30:00Z',
-          category: 'Technology',
-          readingTime: '8 min read',
-          likes: 234,
-          views: 1567
-        };
-
-        const mockComments = [
-          {
-            _id: '1',
-            content: 'This is a fascinating article! The insights about AI in drug discovery are particularly interesting. I had no idea the development time could be reduced so dramatically.',
-            createdBy: {
-              _id: '2',
-              fullName: 'Emma Wilson',
-              ProfileUrl: 'https://images.unsplash.com/photo-1494790108755-2616b612b550?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-            },
-            createdAt: '2024-09-25T14:20:00Z'
-          },
-          {
-            _id: '2',
-            content: 'Great read! As someone working in healthcare, I can definitely see the potential of AI. The key point about maintaining human compassion while leveraging technology really resonates with me.',
-            createdBy: {
-              _id: '3',
-              fullName: 'Dr. Michael Chen',
-              ProfileUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-            },
-            createdAt: '2024-09-25T16:45:00Z'
-          },
-          {
-            _id: '3',
-            content: 'The privacy concerns mentioned are very valid. How do you think we can address these while still advancing AI in healthcare?',
-            createdBy: {
-              _id: '4',
-              fullName: 'Lisa Rodriguez',
-              ProfileUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-            },
-            createdAt: '2024-09-26T09:15:00Z'
+            // Check save status
+            try {
+              const saveResponse = await axios.get(`${API_BASE_URL}/blog/${id}/is-saved`, {
+                withCredentials: true,
+              });
+              if (saveResponse.data?.success) {
+                setBookmarked(saveResponse.data.saved);
+              }
+            } catch (err) {
+              console.error('Error checking save status:', err);
+            }
           }
-        ];
-
-        setBlog(mockBlog);
-        setComments(mockComments);
+        } else {
+          showToast('Blog not found', 'error');
+        }
       } catch (error) {
         console.error('Error fetching blog:', error);
+        showToast('Failed to load blog', 'error');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchBlogData();
-  }, [id]);
+    if (id) {
+      fetchBlogData();
+    }
+  }, [id, user]);
+
+  // Handle like/unlike
+  const handleLike = async () => {
+    if (!user) {
+      showToast('Please login to like this blog', 'error');
+      return;
+    }
+
+    setLikeLoading(true);
+    const previousLiked = liked;
+    const previousCount = likeCount;
+
+    try {
+      // Optimistic update
+      setLiked(!liked);
+      setLikeCount(prev => liked ? prev - 1 : prev + 1);
+
+      const response = await axios.post(
+        `${API_BASE_URL}/blog/${id}/like`,
+        {},
+        { withCredentials: true }
+      );
+
+      if (response.data?.success) {
+        setLiked(response.data.liked);
+        setLikeCount(response.data.likes);
+        showToast(response.data.liked ? 'Blog liked!' : 'Like removed', 'success');
+      } else {
+        // Revert on failure
+        setLiked(previousLiked);
+        setLikeCount(previousCount);
+        showToast('Failed to update like', 'error');
+      }
+    } catch (err) {
+      // Revert on error
+      setLiked(previousLiked);
+      setLikeCount(previousCount);
+      console.error('Error liking blog:', err);
+      showToast('Failed to update like', 'error');
+    } finally {
+      setLikeLoading(false);
+    }
+  };
+
+  // Handle bookmark/unbookmark
+  const handleBookmark = async () => {
+    if (!user) {
+      showToast('Please login to save this blog', 'error');
+      return;
+    }
+
+    setBookmarkLoading(true);
+    const previousBookmarked = bookmarked;
+
+    try {
+      // Optimistic update
+      setBookmarked(!bookmarked);
+
+      const response = await axios.post(
+        `${API_BASE_URL}/blog/${id}/save`,
+        {},
+        { withCredentials: true }
+      );
+
+      if (response.data?.success) {
+        setBookmarked(response.data.saved);
+        showToast(response.data.saved ? 'Blog saved!' : 'Blog removed from saved', 'success');
+      } else {
+        // Revert on failure
+        setBookmarked(previousBookmarked);
+        showToast('Failed to update bookmark', 'error');
+      }
+    } catch (err) {
+      // Revert on error
+      setBookmarked(previousBookmarked);
+      console.error('Error bookmarking blog:', err);
+      showToast('Failed to update bookmark', 'error');
+    } finally {
+      setBookmarkLoading(false);
+    }
+  };
 
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
-    if (!newComment.trim()) return;
+    if (!newComment.trim()) {
+      showToast('Please enter a comment', 'error');
+      return;
+    }
+
+    if (!user) {
+      showToast('Please login to comment', 'error');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const comment = {
-        _id: Date.now().toString(),
-        content: newComment,
-        createdBy: {
-          _id: user.id,
-          fullName: user.fullName,
-          ProfileUrl: user.ProfileUrl || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'
-        },
-        createdAt: new Date().toISOString()
-      };
+      const response = await axios.post(
+        `${API_BASE_URL}/blog/${id}/comments`,
+        { content: newComment },
+        { withCredentials: true }
+      );
 
-      setComments(prev => [...prev, comment]);
-      setNewComment('');
+      if (response.data?.success) {
+        setComments(prev => [...prev, response.data.comment]);
+        setNewComment('');
+        showToast('Comment posted successfully!', 'success');
+      }
     } catch (error) {
       console.error('Error posting comment:', error);
+      showToast('Failed to post comment', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -191,15 +320,28 @@ As we move forward, the collaboration between healthcare professionals and AI sy
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-white via-gray-50 to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Navbar/>
+      
+      {/* Toast Container */}
+      <div className="fixed top-0 right-0 z-50 space-y-2 p-4">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
+
       {/* Back Button */}
       <div className="w-full px-4 pt-8">
         <div className="max-w-4xl mx-auto">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors mb-6 group"
+            className="group flex items-center space-x-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-xl mb-6 shadow-lg"
           >
-            <ArrowLeftIcon className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
-            Back to Articles
+            <ArrowLeftIcon className="h-5 w-5 group-hover:translate-x-[-2px] transition-transform duration-200" />
+            <span>Back to Articles</span>
           </button>
         </div>
       </div>
@@ -210,49 +352,45 @@ As we move forward, the collaboration between healthcare professionals and AI sy
           <div className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden">
             
             {/* Cover Image */}
-            <div className="relative h-96 overflow-hidden">
-              <img
-                src={blog.coverImageURL}
-                alt={blog.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-              
-              {/* Category Badge */}
-              <div className="absolute top-6 left-6">
-                <span className="flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm text-gray-800 dark:text-gray-200 px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-                  <TagIcon className="h-4 w-4" />
-                  {blog.category}
-                </span>
+            {blog.coverImageURL && (
+              <div className="relative h-96 overflow-hidden">
+                <img
+                  src={blog.coverImageURL}
+                  alt={blog.title}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                
+                {/* Action Buttons */}
+                <div className="absolute top-6 right-6 flex gap-3">
+                  <button
+                    onClick={handleLike}
+                    disabled={likeLoading}
+                    className={`p-3 rounded-full backdrop-blur-sm transition-all ${
+                      liked 
+                        ? 'bg-red-500/90 text-white' 
+                        : 'bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-300 hover:bg-red-500/90 hover:text-white'
+                    } ${likeLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <HeartIcon className={`h-5 w-5 ${liked ? 'fill-current' : ''}`} />
+                  </button>
+                  <button
+                    onClick={handleBookmark}
+                    disabled={bookmarkLoading}
+                    className={`p-3 rounded-full backdrop-blur-sm transition-all ${
+                      bookmarked 
+                        ? 'bg-indigo-500/90 text-white' 
+                        : 'bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-300 hover:bg-indigo-500/90 hover:text-white'
+                    } ${bookmarkLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <BookmarkIcon className={`h-5 w-5 ${bookmarked ? 'fill-current' : ''}`} />
+                  </button>
+                  <button className="p-3 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-500/90 hover:text-white transition-all">
+                    <ShareIcon className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
-
-              {/* Action Buttons */}
-              <div className="absolute top-6 right-6 flex gap-3">
-                <button
-                  onClick={() => setLiked(!liked)}
-                  className={`p-3 rounded-full backdrop-blur-sm transition-all ${
-                    liked 
-                      ? 'bg-red-500/90 text-white' 
-                      : 'bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-300 hover:bg-red-500/90 hover:text-white'
-                  }`}
-                >
-                  <HeartIcon className={`h-5 w-5 ${liked ? 'fill-current' : ''}`} />
-                </button>
-                <button
-                  onClick={() => setBookmarked(!bookmarked)}
-                  className={`p-3 rounded-full backdrop-blur-sm transition-all ${
-                    bookmarked 
-                      ? 'bg-indigo-500/90 text-white' 
-                      : 'bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-300 hover:bg-indigo-500/90 hover:text-white'
-                  }`}
-                >
-                  <BookmarkIcon className={`h-5 w-5 ${bookmarked ? 'fill-current' : ''}`} />
-                </button>
-                <button className="p-3 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-500/90 hover:text-white transition-all">
-                  <ShareIcon className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
+            )}
 
             {/* Article Content */}
             <div className="p-8 md:p-12">
@@ -268,29 +406,23 @@ As we move forward, the collaboration between healthcare professionals and AI sy
                   <span className="text-sm">{formatDate(blog.createdAt)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <ClockIcon className="h-4 w-4" />
-                  <span className="text-sm">{blog.readingTime}</span>
-                </div>
-                <div className="flex items-center gap-2">
                   <EyeIcon className="h-4 w-4" />
-                  <span className="text-sm">{blog.views} views</span>
+                  <span className="text-sm">{blog.views || 0} views</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <HeartIcon className="h-4 w-4" />
-                  <span className="text-sm">{blog.likes} likes</span>
+                  <span className="text-sm">{likeCount} likes</span>
                 </div>
               </div>
 
               {/* Author Info */}
               <div className="flex items-center gap-4 p-6 bg-gray-50/50 dark:bg-gray-700/50 rounded-2xl mb-8">
-                <img
-                  src={blog.createdBy.ProfileUrl}
-                  alt={blog.createdBy.fullName}
-                  className="w-16 h-16 rounded-full object-cover border-4 border-white dark:border-gray-600 shadow-lg"
-                />
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                  {blog.createdBy?.fullName?.charAt(0) || blog.createdBy?.name?.charAt(0) || 'A'}
+                </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                    {blog.createdBy.fullName}
+                    {blog.createdBy?.fullName || blog.createdBy?.name || 'Anonymous'}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">Author</p>
                 </div>
@@ -324,11 +456,9 @@ As we move forward, the collaboration between healthcare professionals and AI sy
             {user && (
               <form onSubmit={handleCommentSubmit} className="mb-8">
                 <div className="flex gap-4">
-                  <img
-                    src={user.ProfileUrl || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80'}
-                    alt={user.fullName}
-                    className="w-12 h-12 rounded-full object-cover border-2 border-gray-300 dark:border-gray-600"
-                  />
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold shadow-lg">
+                    {user.fullName?.charAt(0) || user.name?.charAt(0) || 'U'}
+                  </div>
                   <div className="flex-1">
                     <textarea
                       value={newComment}
@@ -388,15 +518,13 @@ As we move forward, the collaboration between healthcare professionals and AI sy
               ) : (
                 comments.map((comment) => (
                   <div key={comment._id} className="flex gap-4 p-6 bg-gray-50/50 dark:bg-gray-700/50 rounded-2xl hover:bg-gray-100/50 dark:hover:bg-gray-700/70 transition-all duration-300">
-                    <img
-                      src={comment.createdBy.ProfileUrl}
-                      alt={comment.createdBy.fullName}
-                      className="w-12 h-12 rounded-full object-cover border-2 border-gray-300 dark:border-gray-600 flex-shrink-0"
-                    />
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold shadow-lg">
+                      {comment.createdBy?.fullName?.charAt(0) || comment.createdBy?.name?.charAt(0) || 'U'}
+                    </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h4 className="font-semibold text-gray-900 dark:text-white">
-                          {comment.createdBy.fullName}
+                          {comment.createdBy?.fullName || comment.createdBy?.name || 'Anonymous'}
                         </h4>
                         <span className="text-sm text-gray-500 dark:text-gray-400">
                           {formatTimeAgo(comment.createdAt)}
@@ -413,7 +541,25 @@ As we move forward, the collaboration between healthcare professionals and AI sy
           </div>
         </div>
       </div>
+      
       <Footer/>
+
+      <style jsx>{`
+        @keyframes slide-in {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 };

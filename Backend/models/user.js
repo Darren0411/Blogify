@@ -14,7 +14,8 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     ProfileUrl: { type: String, default: '/images/default.webp' },
     role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
-    savedBlogs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Blog' }]
+    savedBlogs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Blog' }],
+    likedBlogs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Blog' }]
   },
   { timestamps: true }
 );

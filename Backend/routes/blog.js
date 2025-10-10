@@ -29,22 +29,20 @@ function requireAuth(req, res, next) {
   next();
 }
 
-// Get user's saved blogs - MUST come before /:id route as :/id is a parametrized route
+// Get user's saved blogs - MUST come before /:id route
 router.get('/saved', requireAuth, async (req, res) => {
   try {
     const userId = req.user._id;
     
-    // Use the Blog model directly instead of relying on populate's model reference
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Manually fetch the saved blogs instead of using populate
     const savedBlogIds = user.savedBlogs || [];
     const savedBlogs = await Blog.find({ _id: { $in: savedBlogIds } })
       .populate('createdBy', 'name fullName email')
-      .sort({ createdAt: -1 }); // Most recent first
+      .sort({ createdAt: -1 });
 
     res.json({ 
       success: true, 
@@ -67,7 +65,6 @@ router.post('/', requireAuth, upload.single('coverImage'), async (req, res) => {
     let coverImageURL = '';
 
     if (req.file) {
-      // Upload stream to Cloudinary
       const result = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
@@ -128,6 +125,134 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Like/Unlike a blog - UPDATED
+router.post('/:id/like', requireAuth, async (req, res) => {
+  try {
+    const blogId = req.params.id;
+    const userId = req.user._id;
+
+    const blog = await Blog.findById(blogId);
+    if (!blog) {
+      return res.status(404).json({ success: false, message: 'Blog not found' });
+    }
+
+    const user = await User.findById(userId);
+    const hasLiked = blog.likedBy.includes(userId);
+
+    if (hasLiked) {
+      // Unlike the blog
+      await Blog.findByIdAndUpdate(blogId, {
+        $pull: { likedBy: userId },
+        $inc: { likes: -1 }
+      });
+      
+      await User.findByIdAndUpdate(userId, {
+        $pull: { likedBlogs: blogId }
+      });
+
+      res.json({ 
+        success: true, 
+        message: 'Blog unliked', 
+        liked: false,
+        likes: blog.likes - 1
+      });
+    } else {
+      // Like the blog
+      await Blog.findByIdAndUpdate(blogId, {
+        $addToSet: { likedBy: userId },
+        $inc: { likes: 1 }
+      });
+      
+      await User.findByIdAndUpdate(userId, {
+        $addToSet: { likedBlogs: blogId }
+      });
+
+      res.json({ 
+        success: true, 
+        message: 'Blog liked', 
+        liked: true,
+        likes: blog.likes + 1
+      });
+    }
+  } catch (error) {
+    console.error('Error liking blog:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Check if a blog is liked by current user
+router.get('/:id/is-liked', requireAuth, async (req, res) => {
+  try {
+    const blogId = req.params.id;
+    const userId = req.user._id;
+
+    const blog = await Blog.findById(blogId);
+    if (!blog) {
+      return res.status(404).json({ success: false, message: 'Blog not found' });
+    }
+
+    const isLiked = blog.likedBy.includes(userId);
+
+    res.json({ 
+      success: true, 
+      liked: isLiked,
+      likes: blog.likes || 0
+    });
+  } catch (error) {
+    console.error('Error checking liked status:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Save/Unsave a blog
+router.post('/:id/save', requireAuth, async (req, res) => {
+  try {
+    const blogId = req.params.id;
+    const userId = req.user._id;
+
+    const blog = await Blog.findById(blogId);
+    if (!blog) {
+      return res.status(404).json({ success: false, message: 'Blog not found' });
+    }
+
+    const user = await User.findById(userId);
+    const savedBlogs = user.savedBlogs || [];
+    const isSaved = savedBlogs.some(id => id.toString() === blogId.toString());
+
+    if (isSaved) {
+      await User.findByIdAndUpdate(userId, {
+        $pull: { savedBlogs: blogId }
+      });
+      res.json({ success: true, message: 'Blog unsaved', saved: false });
+    } else {
+      await User.findByIdAndUpdate(userId, {
+        $addToSet: { savedBlogs: blogId }
+      });
+      res.json({ success: true, message: 'Blog saved', saved: true });
+    }
+  } catch (error) {
+    console.error('Error saving blog:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Check if a blog is saved by current user
+router.get('/:id/is-saved', requireAuth, async (req, res) => {
+  try {
+    const blogId = req.params.id;
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    const savedBlogs = user.savedBlogs || [];
+    const isSaved = savedBlogs.some(id => id.toString() === blogId.toString());
+
+    res.json({ success: true, saved: isSaved });
+  } catch (error) {
+    console.error('Error checking saved status:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Get comments for a blog
 router.get('/:id/comments', async (req, res) => {
   try {
@@ -168,74 +293,6 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Add comment error:', err);
     res.status(500).json({ success: false, message: 'Failed to add comment' });
-  }
-});
-
-// Like/Unlike a blog
-router.post('/:id/like', requireAuth, async (req, res) => {
-  try {
-    const blog = await Blog.findById(req.params.id);
-    if (!blog) {
-      return res.status(404).json({ success: false, message: 'Blog not found' });
-    }
-
-    res.json({ success: true, likes: blog.likes || 0 });
-  } catch (error) {
-    console.error('Error liking blog:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// Save/Unsave a blog
-router.post('/:id/save', requireAuth, async (req, res) => {
-  try {
-    const blogId = req.params.id;
-    const userId = req.user._id;
-
-    // Check if blog exists
-    const blog = await Blog.findById(blogId);
-    if (!blog) {
-      return res.status(404).json({ success: false, message: 'Blog not found' });
-    }
-
-    // Check if user already saved this blog
-    const user = await User.findById(userId);
-    const savedBlogs = user.savedBlogs || [];
-    const isSaved = savedBlogs.some(id => id.toString() === blogId.toString());
-
-    if (isSaved) {
-      // Unsave the blog
-      await User.findByIdAndUpdate(userId, {
-        $pull: { savedBlogs: blogId }
-      });
-      res.json({ success: true, message: 'Blog unsaved', saved: false });
-    } else {
-      // Save the blog
-      await User.findByIdAndUpdate(userId, {
-        $addToSet: { savedBlogs: blogId }
-      });
-      res.json({ success: true, message: 'Blog saved', saved: true });
-    }
-  } catch (error) {
-    console.error('Error saving blog:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// Check if a blog is saved by current user
-router.get('/:id/is-saved', requireAuth, async (req, res) => {
-  try {
-    const blogId = req.params.id;
-    const userId = req.user._id;
-
-    const user = await User.findById(userId);
-    const savedBlogs = user.savedBlogs || [];
-    const isSaved = savedBlogs.some(id => id.toString() === blogId.toString());
-
-    res.json({ success: true, saved: isSaved });
-  } catch (error) {
-    console.error('Error checking saved status:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

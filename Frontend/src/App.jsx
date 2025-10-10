@@ -5,9 +5,9 @@ import Home from "./Pages/Home";
 import Login from "./Pages/Login";
 import Signup from "./Pages/Signup";
 import AddBlog from "./Pages/AddBlog";
-import BlogDetail from "./Pages/BlogDetail";
 import { AuthProvider } from "./contexts/AuthContext";
 import PageNotFound from "./Pages/PageNotFound";
+import BlogDetail from './components/BlogDetails';
 
 function App() {
   return (
@@ -20,6 +20,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/add-blog" element={<AddBlog />} />
+              <Route path="/blog/:id" element={<BlogDetail />} />
               <Route path="/blog/:id" element={<BlogDetail />} />
               <Route path="*" element={<PageNotFound />} />
             </Routes>

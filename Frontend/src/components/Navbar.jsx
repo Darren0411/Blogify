@@ -30,81 +30,36 @@ const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
 
-  // Profile Avatar Component with proper image handling
+  // Simple Profile Avatar Component
   const ProfileAvatar = ({ user, size = 'w-10 h-10', textSize = 'text-sm' }) => {
-    const [imageError, setImageError] = useState(false);
-    const [imageLoaded, setImageLoaded] = useState(false);
+    const initials = user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
     
-    const initials = user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
-    
-    // Get profile picture URL
-    const getProfilePicUrl = () => {
-      if (!user?.ProfileUrl || user.ProfileUrl === '/images/default.webp') {
-        return null; // No custom profile picture
-      }
-      
-      // If it's already a full URL, use it
-      if (user.ProfileUrl.startsWith('http')) {
-        return user.ProfileUrl;
-      }
-      
-      // If it's a relative path, prepend the API base URL
-      return `${API_BASE_URL}${user.ProfileUrl}`;
-    };
-
-    const profilePicUrl = getProfilePicUrl();
-
-    // If no profile picture URL or image failed to load, show initials
-    if (!profilePicUrl || imageError) {
+    // If user is logged in, show profile picture from public folder
+    if (user) {
       return (
-        <div className={`${size} bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold ${textSize} shadow-lg`}>
-          {initials}
+        <div className={`${size} rounded-full overflow-hidden shadow-lg`}>
+          <img
+            src="./image.png" // Your profile image from public folder
+            alt={user?.fullName || user?.name || 'User'}
+            className="w-full h-full object-cover"
+          />
         </div>
       );
     }
 
-    // Show profile picture
+    // If no user (not logged in), show initials
     return (
-      <div className={`${size} rounded-full overflow-hidden shadow-lg bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center`}>
-        <img
-          src={profilePicUrl}
-          alt={user?.fullName || 'User'}
-          className="w-full h-full object-cover"
-          onError={() => {
-            console.log('Image failed to load:', profilePicUrl);
-            setImageError(true);
-          }}
-          onLoad={() => {
-            console.log('Image loaded successfully:', profilePicUrl);
-            setImageLoaded(true);
-            setImageError(false);
-          }}
-        />
-        {/* Fallback initials while image is loading */}
-        {!imageLoaded && !imageError && (
-          <div className="absolute inset-0 flex items-center justify-center text-white font-bold">
-            {initials}
-          </div>
-        )}
+      <div className={`${size} bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold ${textSize} shadow-lg`}>
+        {initials}
       </div>
     );
   };
 
-  // Fetch user details
+  // Fetch user details from cookies only
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        // First check localStorage for quick UI update
-        const storedUser = localStorage.getItem('user');
-        const isLoggedIn = localStorage.getItem('loggedIn') === 'true';
-        
-        if (storedUser && isLoggedIn) {
-          const parsedUser = JSON.parse(storedUser);
-          console.log('User from localStorage:', parsedUser);
-          setUser(parsedUser);
-        }
-
-        // Then verify with backend (cookie-based auth)
+        // Only fetch from backend using cookies
         const response = await axios.get(`${API_BASE_URL}/user/me`, {
           withCredentials: true,
           headers: { Accept: 'application/json' }
@@ -113,21 +68,14 @@ const Navbar = () => {
         if (response.data?.success && response.data.user) {
           console.log('User from backend:', response.data.user);
           setUser(response.data.user);
-          // Update localStorage with fresh data
-          localStorage.setItem('user', JSON.stringify(response.data.user));
-          localStorage.setItem('loggedIn', 'true');
         } else {
-          // Clear if no valid user
+          // Clear user if no valid response
           setUser(null);
-          localStorage.removeItem('user');
-          localStorage.removeItem('loggedIn');
         }
       } catch (error) {
         console.error('Auth error:', error);
         // If 401/403, user is not authenticated
         setUser(null);
-        localStorage.removeItem('user');
-        localStorage.removeItem('loggedIn');
       } finally {
         setIsLoading(false);
       }
@@ -182,11 +130,8 @@ const Navbar = () => {
       // silent fail - cookie might already be cleared
     }
     
-    // Clear user state and localStorage
+    // Clear user state only
     setUser(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('loggedIn');
-    
     navigate('/');
     setIsProfileOpen(false);
   };
@@ -259,20 +204,6 @@ const Navbar = () => {
                   <HomeIcon className="h-4 w-4" />
                   <span>Home</span>
                 </Link>
-
-                {user && (
-                  <Link 
-                    to="/add-blog" 
-                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-300 ${
-                      isActiveRoute('/add-blog') 
-                        ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-lg' 
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-700/70 hover:text-purple-600'
-                    }`}
-                  >
-                    <BookOpenIcon className="h-4 w-4" />
-                    <span>Add Blog</span>
-                  </Link>
-                )}
               </div>
 
               {/* Search Bar */}
@@ -315,7 +246,7 @@ const Navbar = () => {
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
                     <div className="relative flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 transform group-hover:scale-105 group-hover:shadow-2xl">
                       <PlusIcon className="h-4 w-4" />
-                      <span>Write</span>
+                      <span>Add Blog</span>
                     </div>
                   </Link>
 
@@ -339,7 +270,7 @@ const Navbar = () => {
                       </div>
                       <div className="hidden xl:block text-left">
                         <p className="text-sm font-semibold text-gray-900 dark:text-white max-w-24 truncate">
-                          {user?.fullName || 'User'}
+                          {user?.fullName || user?.name || 'User'}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">Writer</p>
                       </div>
@@ -353,21 +284,13 @@ const Navbar = () => {
                           <div className="flex items-center space-x-3">
                             <ProfileAvatar user={user} size="w-12 h-12" textSize="text-base" />
                             <div>
-                              <p className="font-semibold text-gray-900 dark:text-white">{user?.fullName}</p>
+                              <p className="font-semibold text-gray-900 dark:text-white">{user?.fullName || user?.name}</p>
                               <p className="text-sm text-gray-500 dark:text-gray-400">{user?.email}</p>
                             </div>
                           </div>
                         </div>
                         
                         <div className="py-2">
-                          <Link 
-                            to="/profile" 
-                            className="flex items-center space-x-3 px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-gray-700 hover:text-purple-600 transition-all duration-200"
-                            onClick={() => setIsProfileOpen(false)}
-                          >
-                            <UserIcon className="h-5 w-5" />
-                            <span className="font-medium">Profile</span>
-                          </Link>
                           
                           <Link 
                             to="/my-blogs" 
@@ -378,14 +301,6 @@ const Navbar = () => {
                             <span className="font-medium">My Articles</span>
                           </Link>
                           
-                          <Link 
-                            to="/settings" 
-                            className="flex items-center space-x-3 px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-gray-700 hover:text-purple-600 transition-all duration-200"
-                            onClick={() => setIsProfileOpen(false)}
-                          >
-                            <SettingsIcon className="h-5 w-5" />
-                            <span className="font-medium">Settings</span>
-                          </Link>
                         </div>
                         
                         <div className="border-t border-gray-100/50 dark:border-gray-700/50 mt-2 pt-2">
@@ -496,7 +411,7 @@ const Navbar = () => {
                     <div className="flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-2xl mb-3">
                       <ProfileAvatar user={user} />
                       <div>
-                        <p className="font-semibold text-gray-900 dark:text-white">{user?.fullName}</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">{user?.fullName || user?.name}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Writer</p>
                       </div>
                     </div>

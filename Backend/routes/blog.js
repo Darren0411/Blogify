@@ -1,6 +1,5 @@
 import express from 'express';
 import multer from 'multer';
-import '../models/user.js';
 import { v2 as cloudinary } from 'cloudinary';
 import Blog from '../models/blog.js';
 import Comment from '../models/comment.js';
@@ -30,6 +29,34 @@ function requireAuth(req, res, next) {
   next();
 }
 
+// Get user's saved blogs - MUST come before /:id route as :/id is a parametrized route
+router.get('/saved', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    // Use the Blog model directly instead of relying on populate's model reference
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Manually fetch the saved blogs instead of using populate
+    const savedBlogIds = user.savedBlogs || [];
+    const savedBlogs = await Blog.find({ _id: { $in: savedBlogIds } })
+      .populate('createdBy', 'name fullName email')
+      .sort({ createdAt: -1 }); // Most recent first
+
+    res.json({ 
+      success: true, 
+      savedBlogs: savedBlogs
+    });
+  } catch (error) {
+    console.error('Error fetching saved blogs:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Create blog
 router.post('/', requireAuth, upload.single('coverImage'), async (req, res) => {
   try {
     const { title, body } = req.body;
@@ -77,21 +104,18 @@ router.post('/', requireAuth, upload.single('coverImage'), async (req, res) => {
   }
 });
 
+// Get single blog by ID - MUST come after /saved route
 router.get('/:id', async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.id)
-      .populate('createdBy', 'fullName ProfileUrl');
+      .populate('createdBy', 'fullName ProfileUrl name email');
     if (!blog) {
       return res.status(404).json({ success: false, message: 'Blog not found' });
     }
 
-    // Optional: increment views
-    blog.views = (blog.views || 0) + 1;
-    await blog.save();
-
     const comments = await Comment.find({ blogId: blog._id })
       .sort({ createdAt: 1 })
-      .populate('createdBy', 'fullName ProfileUrl');
+      .populate('createdBy', 'fullName ProfileUrl name email');
 
     res.json({
       success: true,
@@ -104,11 +128,12 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Get comments for a blog
 router.get('/:id/comments', async (req, res) => {
   try {
     const comments = await Comment.find({ blogId: req.params.id })
       .sort({ createdAt: 1 })
-      .populate('createdBy', 'fullName ProfileUrl');
+      .populate('createdBy', 'fullName ProfileUrl name email');
     res.json({ success: true, comments });
   } catch (err) {
     console.error('Fetch comments error:', err);
@@ -116,6 +141,7 @@ router.get('/:id/comments', async (req, res) => {
   }
 });
 
+// Add comment to a blog
 router.post('/:id/comments', requireAuth, async (req, res) => {
   try {
     const { content } = req.body;
@@ -132,7 +158,7 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
       createdBy: req.user._id,
     });
 
-    const populated = await comment.populate('createdBy', 'fullName ProfileUrl');
+    const populated = await comment.populate('createdBy', 'fullName ProfileUrl name email');
 
     res.status(201).json({
       success: true,
@@ -145,8 +171,7 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
   }
 });
 
-
-//Number of likes 
+// Like/Unlike a blog
 router.post('/:id/like', requireAuth, async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.id);
@@ -154,18 +179,12 @@ router.post('/:id/like', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Blog not found' });
     }
 
-    res.json({ success: true, likes: blog.likes });
+    res.json({ success: true, likes: blog.likes || 0 });
   } catch (error) {
+    console.error('Error liking blog:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-
-router.post('/comments/:blogId', requireAuth, async (req, res) => {
-  req.params.id = req.params.blogId; 
-  return router.handle({ ...req, url: `/${req.params.blogId}/comments`, method: 'POST' }, res);
-});
-
-// Add these routes to your existing blog.js file
 
 // Save/Unsave a blog
 router.post('/:id/save', requireAuth, async (req, res) => {
@@ -182,7 +201,7 @@ router.post('/:id/save', requireAuth, async (req, res) => {
     // Check if user already saved this blog
     const user = await User.findById(userId);
     const savedBlogs = user.savedBlogs || [];
-    const isSaved = savedBlogs.includes(blogId);
+    const isSaved = savedBlogs.some(id => id.toString() === blogId.toString());
 
     if (isSaved) {
       // Unsave the blog
@@ -203,33 +222,6 @@ router.post('/:id/save', requireAuth, async (req, res) => {
   }
 });
 
-// Get user's saved blogs
-router.get('/saved', requireAuth, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    
-    const user = await User.findById(userId).populate({
-      path: 'savedBlogs',
-      populate: {
-        path: 'createdBy',
-        select: 'name fullName email'
-      }
-    });
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    res.json({ 
-      success: true, 
-      savedBlogs: user.savedBlogs || [] 
-    });
-  } catch (error) {
-    console.error('Error fetching saved blogs:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
 // Check if a blog is saved by current user
 router.get('/:id/is-saved', requireAuth, async (req, res) => {
   try {
@@ -238,7 +230,7 @@ router.get('/:id/is-saved', requireAuth, async (req, res) => {
 
     const user = await User.findById(userId);
     const savedBlogs = user.savedBlogs || [];
-    const isSaved = savedBlogs.includes(blogId);
+    const isSaved = savedBlogs.some(id => id.toString() === blogId.toString());
 
     res.json({ success: true, saved: isSaved });
   } catch (error) {

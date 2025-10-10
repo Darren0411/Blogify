@@ -1,19 +1,21 @@
-import { validateUser } from "../services/authentication.js";
+import { validateUser } from '../services/authentication.js';
 
-function checkforAuthenticationCookie(cookieName){
-    return (req,res,next)=>{
-        const tokenCookieValue = req.cookies[cookieName];
-        if(!tokenCookieValue){
-           return next();
-        }
-        try {
-            const userPayload = validateUser(tokenCookieValue);
-            req.user = userPayload;     //  This is done to attach the authenticated user's details to the request object (req), making it accessible in all subsequent middleware and route handlers
-        } catch (error) {}
-         return next();
+// Attaches req.user if a valid token cookie exists; never blocks the request.
+export function checkforAuthenticationCookie(cookieName = 'token') {
+  return (req, res, next) => {
+    const token = req.cookies?.[cookieName];
+    if (!token) {
+      req.user = null;
+      return next();
     }
-
+    try {
+      const userPayload = validateUser(token);
+      req.user = userPayload || null;
+    } catch (err) {
+      req.user = null; // invalid/expired token -> continue without user
+    }
+    return next();
+  };
 }
-
 
 export default checkforAuthenticationCookie;

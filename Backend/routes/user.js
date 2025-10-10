@@ -6,8 +6,9 @@ const router = express.Router();
 
 router.post('/signup', async (req, res) => {
   try {
-    const { fullName, email, password } = req.body;
+     const { fullName, email, password } = req.body;
     if (!fullName || !email || !password)
+
       return res.status(400).json({ success: false, message: 'All fields required' });
 
     const exists = await User.findOne({ email });
@@ -22,21 +23,21 @@ router.post('/signup', async (req, res) => {
 
 router.post('/signin', async (req, res) => {
   try {
-    const { email, password } = req.body;
+     const { email, password } = req.body;
+
     if (!email || !password)
       return res.status(400).json({ success: false, message: 'Email and password required' });
-
     const { token, user } = await User.matchPasswordAndGenerateToken(email, password);
 
     res
       .cookie('token', token, {
         httpOnly: true,
-        sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',
         maxAge: 24 * 60 * 60 * 1000,
       })
       .json({ success: true, token, user });
   } catch (e) {
+    console.error('Signin error:', e);
     res.status(401).json({ success: false, message: e.message });
   }
 });

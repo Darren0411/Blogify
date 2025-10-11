@@ -29,6 +29,8 @@ function requireAuth(req, res, next) {
   next();
 }
 
+// IMPORTANT: Specific routes MUST come before parameterized routes (:id)
+
 // Get user's saved blogs - MUST come before /:id route
 router.get('/saved', requireAuth, async (req, res) => {
   try {
@@ -51,6 +53,51 @@ router.get('/saved', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching saved blogs:', error);
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Fetch logged in user's blogs
+router.get('/my-blogs', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Fetch blogs created by the current user
+    const blogs = await Blog.find({ createdBy: userId })
+      .populate('createdBy', 'fullName name email')
+      .sort({ createdAt: -1 }) // Most recent first
+      .lean();
+
+    // For each blog, get additional stats
+    const blogsWithStats = await Promise.all(
+      blogs.map(async (blog) => {
+        // Get comments count
+        const commentsCount = await Comment.countDocuments({ blogId: blog._id });
+        
+        // Get likes count directly from blog model (since you're storing it there)
+        const likesCount = blog.likes || 0;
+        
+        return {
+          ...blog,
+          likes: likesCount,
+          comments: { length: commentsCount },
+        };
+      })
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'User blogs fetched successfully',
+      blogs: blogsWithStats,
+      count: blogsWithStats.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching user blogs:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
   }
 });
 
@@ -101,7 +148,7 @@ router.post('/', requireAuth, upload.single('coverImage'), async (req, res) => {
   }
 });
 
-// Get single blog by ID - MUST come after /saved route
+// Get single blog by ID - MUST come after specific routes like /saved and /my-blogs
 router.get('/:id', async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.id)
@@ -122,6 +169,118 @@ router.get('/:id', async (req, res) => {
   } catch (err) {
     console.error('Fetch blog error:', err);
     res.status(500).json({ success: false, message: 'Failed to fetch blog' });
+  }
+});
+
+// Delete a blog (only by the author) - MUST come after /:id GET route
+router.delete('/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    // Find the blog
+    const blog = await Blog.findById(id);
+
+    if (!blog) {
+      return res.status(404).json({
+        success: false,
+        message: 'Blog not found'
+      });
+    }
+
+    // Check if the current user is the author
+    if (blog.createdBy.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete your own blogs'
+      });
+    }
+
+    // Delete associated comments
+    await Comment.deleteMany({ blogId: id });
+
+    // Remove blog from all users' saved blogs and liked blogs
+    await User.updateMany(
+      { $or: [{ savedBlogs: id }, { likedBlogs: id }] },
+      { $pull: { savedBlogs: id, likedBlogs: id } }
+    );
+
+    // Delete the blog
+    await Blog.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Blog deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting blog:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
+// Update a blog (only by the author) - MUST come after /:id GET route
+router.put('/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+    const { title, body, coverImageURL } = req.body;
+
+    // Validate required fields
+    if (!title || !body) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and body are required'
+      });
+    }
+
+    // Find the blog
+    const blog = await Blog.findById(id);
+
+    if (!blog) {
+      return res.status(404).json({
+        success: false,
+        message: 'Blog not found'
+      });
+    }
+
+    // Check if the current user is the author
+    if (blog.createdBy.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only edit your own blogs'
+      });
+    }
+
+    // Update the blog
+    const updatedBlog = await Blog.findByIdAndUpdate(
+      id,
+      {
+        title: title.trim(),
+        body: body.trim(),
+        coverImageURL: coverImageURL || blog.coverImageURL,
+        updatedAt: new Date()
+      },
+      { new: true, runValidators: true }
+    ).populate('createdBy', 'fullName name email');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Blog updated successfully',
+      blog: updatedBlog
+    });
+
+  } catch (error) {
+    console.error('Error updating blog:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
   }
 });
 

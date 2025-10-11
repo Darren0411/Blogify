@@ -229,6 +229,21 @@ const Navbar = () => {
                   <HomeIcon className="h-4 w-4" />
                   <span>Home</span>
                 </Link>
+
+                {/* My Blogs button - Only show when user is logged in */}
+                {user && (
+                  <Link
+                    to="/my-blogs"
+                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-300 ${
+                      isActiveRoute("/my-blogs")
+                        ? "bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-lg"
+                        : "text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-700/70 hover:text-purple-600"
+                    }`}
+                  >
+                    <BookOpenIcon className="h-4 w-4" />
+                    <span>My Blogs</span>
+                  </Link>
+                )}
               </div>
 
               {/* Search Bar */}
@@ -451,7 +466,22 @@ const Navbar = () => {
                     <HomeIcon className="h-5 w-5" />
                     <span className="font-medium">Home</span>
                   </Link>
-                  
+
+                  {/* My Blogs button for mobile - Only show when user is logged in */}
+                  {user && (
+                    <Link
+                      to="/my-blogs"
+                      className={`flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
+                        isActiveRoute("/my-blogs")
+                          ? "bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-700"
+                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70"
+                      }`}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <BookOpenIcon className="h-5 w-5" />
+                      <span className="font-medium">My Blogs</span>
+                    </Link>
+                  )}
 
                   {user && (
                     <Link

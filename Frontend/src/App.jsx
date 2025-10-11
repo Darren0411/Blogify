@@ -9,6 +9,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import PageNotFound from "./Pages/PageNotFound";
 import BlogDetail from './components/BlogDetails';
 import SavedBlogs from './pages/SavedBlogs';
+import MyBlogs from "./pages/MyBlogs";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
               <Route path="/blog/:id" element={<BlogDetail />} />
               <Route path="/blog/:id" element={<BlogDetail />} />
               <Route path="/saved-blogs" element={<SavedBlogs />} />
+              <Route path="/my-blogs" element={<MyBlogs />} />
               <Route path="*" element={<PageNotFound />} />
             </Routes>
           </main>

@@ -451,6 +451,7 @@ const Navbar = () => {
                     <HomeIcon className="h-5 w-5" />
                     <span className="font-medium">Home</span>
                   </Link>
+                  
 
                   {user && (
                     <Link

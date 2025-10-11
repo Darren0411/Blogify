@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import Navbar from '../components/Navbar';
 import { 
   PlusIcon, 
@@ -10,9 +11,63 @@ import {
   XIcon,
   UploadIcon,
   EyeIcon,
-  TagIcon
+  TagIcon,
+  CheckCircleIcon,
+  AlertCircleIcon,
+  InfoIcon
 } from 'lucide-react';
 import Footer from '../components/Footer';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4500';
+
+// Toast Component
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const getToastStyles = () => {
+    switch (type) {
+      case 'success':
+        return 'bg-green-500 text-white';
+      case 'error':
+        return 'bg-red-500 text-white';
+      case 'info':
+        return 'bg-blue-500 text-white';
+      default:
+        return 'bg-gray-800 text-white';
+    }
+  };
+
+  const getIcon = () => {
+    switch (type) {
+      case 'success':
+        return <CheckCircleIcon className="h-5 w-5" />;
+      case 'error':
+        return <AlertCircleIcon className="h-5 w-5" />;
+      case 'info':
+        return <InfoIcon className="h-5 w-5" />;
+      default:
+        return <InfoIcon className="h-5 w-5" />;
+    }
+  };
+
+  return (
+    <div className={`fixed top-24 right-4 z-50 flex items-center space-x-3 px-6 py-4 rounded-lg shadow-2xl transform transition-all duration-300 animate-slide-in ${getToastStyles()}`}>
+      {getIcon()}
+      <span className="font-medium">{message}</span>
+      <button
+        onClick={onClose}
+        className="ml-4 hover:bg-white/20 rounded-full p-1 transition-colors"
+      >
+        <XIcon className="h-4 w-4" />
+      </button>
+    </div>
+  );
+};
 
 const AddBlog = () => {
   const navigate = useNavigate();
@@ -25,11 +80,46 @@ const AddBlog = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [user, setUser] = useState(null);
+  const [toasts, setToasts] = useState([]);
 
   const categories = [
     'Technology', 'Lifestyle', 'Food', 'Business', 'Travel', 
     'Health', 'Education', 'Entertainment', 'Sports', 'Science'
   ];
+
+  // Toast functions
+  const showToast = (message, type = 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
+  // Check if user is authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/user/me`, {
+          withCredentials: true,
+        });
+        if (response.data?.success) {
+          setUser(response.data.user);
+        } else {
+          // User not authenticated, redirect to login
+          showToast('Please login to create a blog', 'error');
+          navigate('/login');
+        }
+      } catch (err) {
+        console.error('Auth check failed:', err);
+        showToast('Please login to create a blog', 'error');
+        navigate('/login');
+      }
+    };
+    checkAuth();
+  }, [navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -119,6 +209,13 @@ const AddBlog = () => {
     e.preventDefault();
     
     if (!validateForm()) {
+      showToast('Please fix the form errors', 'error');
+      return;
+    }
+
+    if (!user) {
+      showToast('Please login to create a blog', 'error');
+      navigate('/login');
       return;
     }
     
@@ -127,36 +224,85 @@ const AddBlog = () => {
     try {
       // Create FormData for file upload
       const submitData = new FormData();
-      submitData.append('title', formData.title);
-      submitData.append('body', formData.body);
-      submitData.append('category', formData.category);
+      submitData.append('title', formData.title.trim());
+      submitData.append('body', formData.body.trim());
       submitData.append('coverImage', coverImage);
       
-      // TODO: Replace with actual API call
-      console.log('Form submitted:', {
+      console.log('Submitting blog data:', {
         title: formData.title,
-        body: formData.body,
-        category: formData.category,
+        body: formData.body.substring(0, 100) + '...',
         coverImage: coverImage?.name
       });
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Navigate to home or blog detail page
-      navigate('/');
+
+      // Make API call to create blog
+      const response = await axios.post(
+        `${API_BASE_URL}/blog`,
+        submitData,
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      if (response.data?.success) {
+        showToast('Blog created successfully!', 'success');
+        
+        // Wait a moment to show the success message, then navigate
+        setTimeout(() => {
+          navigate(`/blog/${response.data.blog._id}`);
+        }, 1500);
+      } else {
+        throw new Error(response.data?.message || 'Failed to create blog');
+      }
       
     } catch (error) {
       console.error('Error creating blog:', error);
-      setErrors({ submit: 'Failed to create blog. Please try again.' });
+      
+      if (error.response?.status === 401) {
+        showToast('Session expired. Please login again', 'error');
+        navigate('/login');
+      } else if (error.response?.status === 400) {
+        showToast(error.response.data?.message || 'Invalid blog data', 'error');
+      } else if (error.response?.status === 413) {
+        showToast('File too large. Please use a smaller image', 'error');
+      } else {
+        showToast(error.response?.data?.message || 'Failed to create blog. Please try again.', 'error');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Show loading if checking authentication
+  if (!user && !errors.submit) {
+    return (
+      <div className="w-full min-h-screen bg-gradient-to-br from-white via-gray-50 to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 dark:border-indigo-400 mx-auto mb-4"></div>
+          <p className="text-xl text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-white via-gray-50 to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-         <Navbar />
+      <Navbar />
+      
+      {/* Toast Container */}
+      <div className="fixed top-0 right-0 z-50 space-y-2 p-4">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
+
       {/* Header Section */}
       <div className="w-full bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 dark:from-purple-800 dark:via-indigo-800 dark:to-blue-800 text-white">
         <div className="max-w-6xl mx-auto px-4 py-16">
@@ -170,6 +316,11 @@ const AddBlog = () => {
             <p className="text-xl text-purple-100 dark:text-purple-200 max-w-2xl mx-auto">
               Share your thoughts, experiences, and ideas with the world
             </p>
+            {user && (
+              <p className="text-lg text-purple-200 mt-4">
+                Welcome back, <span className="font-semibold">{user.fullName || user.name}</span>!
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -271,26 +422,6 @@ const AddBlog = () => {
                 </div>
               </div>
 
-              {/* Category Selection */}
-              <div className="mb-8">
-                <label className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white mb-4">
-                  <TagIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
-                  Category
-                </label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="w-full px-6 py-4 text-lg border-2 border-gray-300 dark:border-gray-600 rounded-2xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-4 focus:ring-indigo-500/20 dark:focus:ring-indigo-400/20 focus:border-indigo-500 dark:focus:border-indigo-400 transition-all duration-300 cursor-pointer"
-                >
-                  {categories.map(category => (
-                    <option key={category} value={category} className="py-2 dark:bg-gray-700">
-                      {category}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               {/* Body/Content Textarea */}
               <div className="mb-8">
                 <label className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white mb-4">
@@ -326,29 +457,15 @@ const AddBlog = () => {
                 </div>
               </div>
 
-              {/* Submit Error */}
-              {errors.submit && (
-                <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl">
-                  <p className="text-red-600 dark:text-red-400 text-center">{errors.submit}</p>
-                </div>
-              )}
-
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-end">
                 <button
                   type="button"
                   onClick={() => navigate('/')}
-                  className="px-8 py-4 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 text-lg"
+                  disabled={isLoading}
+                  className="px-8 py-4 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
-                </button>
-                
-                <button
-                  type="button"
-                  className="px-8 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-2xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-300 text-lg flex items-center gap-3"
-                >
-                  <EyeIcon className="h-5 w-5" />
-                  Preview
                 </button>
                 
                 <button
@@ -364,7 +481,7 @@ const AddBlog = () => {
                   ) : (
                     <>
                       <SaveIcon className="h-5 w-5" />
-                      Publish
+                      Publish Blog
                     </>
                   )}
                 </button>
@@ -373,7 +490,25 @@ const AddBlog = () => {
           </div>
         </div>
       </div>
+      
       <Footer/>
+
+      <style jsx>{`
+        @keyframes slide-in {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 };

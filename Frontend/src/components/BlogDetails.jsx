@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
-import { 
-  CalendarIcon, 
-  UserIcon, 
-  EyeIcon, 
-  MessageCircleIcon, 
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import axios from "axios";
+import {
+  CalendarIcon,
+  UserIcon,
+  EyeIcon,
+  MessageCircleIcon,
   SendIcon,
   ArrowLeftIcon,
   HeartIcon,
@@ -16,10 +16,11 @@ import {
   XIcon,
   AlertCircleIcon,
   CheckCircleIcon,
-  InfoIcon
-} from 'lucide-react';
+  InfoIcon,
+} from "lucide-react";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4500';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:4500";
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -33,24 +34,24 @@ const Toast = ({ message, type, onClose }) => {
 
   const getToastStyles = () => {
     switch (type) {
-      case 'success':
-        return 'bg-green-500 text-white';
-      case 'error':
-        return 'bg-red-500 text-white';
-      case 'info':
-        return 'bg-blue-500 text-white';
+      case "success":
+        return "bg-green-500 text-white";
+      case "error":
+        return "bg-red-500 text-white";
+      case "info":
+        return "bg-blue-500 text-white";
       default:
-        return 'bg-gray-800 text-white';
+        return "bg-gray-800 text-white";
     }
   };
 
   const getIcon = () => {
     switch (type) {
-      case 'success':
+      case "success":
         return <CheckCircleIcon className="h-5 w-5" />;
-      case 'error':
+      case "error":
         return <AlertCircleIcon className="h-5 w-5" />;
-      case 'info':
+      case "info":
         return <InfoIcon className="h-5 w-5" />;
       default:
         return <InfoIcon className="h-5 w-5" />;
@@ -58,7 +59,9 @@ const Toast = ({ message, type, onClose }) => {
   };
 
   return (
-    <div className={`fixed top-24 right-4 z-50 flex items-center space-x-3 px-6 py-4 rounded-lg shadow-2xl transform transition-all duration-300 animate-slide-in ${getToastStyles()}`}>
+    <div
+      className={`fixed top-24 right-4 z-[9999] flex items-center space-x-3 px-6 py-4 rounded-lg shadow-2xl transform transition-all duration-300 animate-slide-in ${getToastStyles()}`}
+    >
       {getIcon()}
       <span className="font-medium">{message}</span>
       <button
@@ -78,9 +81,9 @@ const BlogDetail = () => {
   const [comments, setComments] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [commentContent, setCommentContent] = useState('');
+  const [commentContent, setCommentContent] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [showShareMenu, setShowShareMenu] = useState(false);
@@ -90,26 +93,26 @@ const BlogDetail = () => {
   const [toasts, setToasts] = useState([]);
 
   // Toast functions
-  const showToast = (message, type = 'info') => {
+  const showToast = (message, type = "info") => {
     const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type }]);
   };
 
   const removeToast = (id) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
   // Initialize dark mode on component mount
   useEffect(() => {
-    const savedMode = localStorage.getItem('darkMode');
-    const isDark = savedMode === null ? true : savedMode === 'true';
-    
+    const savedMode = localStorage.getItem("darkMode");
+    const isDark = savedMode === null ? true : savedMode === "true";
+
     if (isDark) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
     } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
     }
   }, []);
 
@@ -135,18 +138,44 @@ const BlogDetail = () => {
     const checkSavedStatus = async () => {
       if (user && id) {
         try {
-          const response = await axios.get(`${API_BASE_URL}/blog/${id}/is-saved`, {
-            withCredentials: true,
-          });
+          const response = await axios.get(
+            `${API_BASE_URL}/blog/${id}/is-saved`,
+            {
+              withCredentials: true,
+            }
+          );
           if (response.data?.success) {
             setIsSaved(response.data.saved);
           }
         } catch (err) {
-          console.error('Error checking saved status:', err);
+          console.error("Error checking saved status:", err);
         }
       }
     };
     checkSavedStatus();
+  }, [user, id]);
+
+  // Check if blog is liked by current user
+  useEffect(() => {
+    const checkLikedStatus = async () => {
+      if (user && id) {
+        try {
+          const response = await axios.get(
+            `${API_BASE_URL}/blog/${id}/is-liked`,
+            {
+              withCredentials: true,
+            }
+          );
+          if (response.data?.success) {
+            setIsLiked(response.data.liked);
+            setLikeCount(response.data.likes);
+          }
+        } catch (err) {
+          console.error("Error checking liked status:", err);
+        }
+      }
+    };
+    checkLikedStatus();
   }, [user, id]);
 
   // Fetch blog and comments
@@ -155,17 +184,17 @@ const BlogDetail = () => {
       try {
         setLoading(true);
         const response = await axios.get(`${API_BASE_URL}/blog/${id}`);
-        
+
         if (response.data?.success) {
           setBlog(response.data.blog);
           setComments(response.data.comments || []);
           setLikeCount(response.data.blog.likes || 0);
         } else {
-          setError('Blog not found');
+          setError("Blog not found");
         }
       } catch (err) {
-        console.error('Error fetching blog:', err);
-        setError('Failed to load blog');
+        console.error("Error fetching blog:", err);
+        setError("Failed to load blog");
       } finally {
         setLoading(false);
       }
@@ -179,13 +208,13 @@ const BlogDetail = () => {
   // Handle save/unsave
   const handleSave = async () => {
     if (!user) {
-      showToast('Please login to save this blog', 'error');
+      showToast("Please login to save this blog", "error");
       return;
     }
 
     try {
       setSaveLoading(true);
-      
+
       const response = await axios.post(
         `${API_BASE_URL}/blog/${id}/save`,
         {},
@@ -195,13 +224,15 @@ const BlogDetail = () => {
       if (response.data?.success) {
         setIsSaved(response.data.saved);
         showToast(
-          response.data.saved ? 'Blog saved successfully!' : 'Blog removed from saved',
-          'success'
+          response.data.saved
+            ? "Blog saved successfully!"
+            : "Blog removed from saved",
+          "success"
         );
       }
     } catch (err) {
-      console.error('Error saving blog:', err);
-      showToast('Failed to save blog', 'error');
+      console.error("Error saving blog:", err);
+      showToast("Failed to save blog", "error");
     } finally {
       setSaveLoading(false);
     }
@@ -210,14 +241,14 @@ const BlogDetail = () => {
   // Handle comment submission
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!user) {
-      showToast('Please login to comment', 'error');
+      showToast("Please login to comment", "error");
       return;
     }
 
     if (!commentContent.trim()) {
-      showToast('Please enter a comment', 'error');
+      showToast("Please enter a comment", "error");
       return;
     }
 
@@ -230,13 +261,13 @@ const BlogDetail = () => {
       );
 
       if (response.data?.success) {
-        setComments(prev => [...prev, response.data.comment]);
-        setCommentContent('');
-        showToast('Comment posted successfully!', 'success');
+        setComments((prev) => [...prev, response.data.comment]);
+        setCommentContent("");
+        showToast("Comment posted successfully!", "success");
       }
     } catch (err) {
-      console.error('Error adding comment:', err);
-      showToast('Failed to add comment', 'error');
+      console.error("Error adding comment:", err);
+      showToast("Failed to add comment", "error");
     } finally {
       setCommentLoading(false);
     }
@@ -245,13 +276,17 @@ const BlogDetail = () => {
   // Handle like/unlike
   const handleLike = async () => {
     if (!user) {
-      showToast('Please login to like this blog', 'error');
+      showToast("Please login to like this blog", "error");
       return;
     }
 
     try {
-      setIsLiked(!isLiked);
-      setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+      // Optimistic update
+      const newLikedState = !isLiked;
+      const newLikeCount = newLikedState ? likeCount + 1 : likeCount - 1;
+      
+      setIsLiked(newLikedState);
+      setLikeCount(newLikeCount);
 
       const response = await axios.post(
         `${API_BASE_URL}/blog/${id}/like`,
@@ -259,85 +294,102 @@ const BlogDetail = () => {
         { withCredentials: true }
       );
 
-      if (!response.data?.success) {
-        setIsLiked(isLiked);
-        setLikeCount(prev => isLiked ? prev + 1 : prev - 1);
-        showToast('Failed to update like', 'error');
+      if (response.data?.success) {
+        // Update with actual server response
+        setIsLiked(response.data.liked);
+        setLikeCount(response.data.likes);
+        showToast(response.data.liked ? "Added like" : "Removed like", "success");
       } else {
-        showToast(isLiked ? 'Removed like' : 'Added like', 'success');
+        // Revert on failure
+        setIsLiked(!newLikedState);
+        setLikeCount(likeCount);
+        showToast("Failed to update like", "error");
       }
     } catch (err) {
-      setIsLiked(isLiked);
-      setLikeCount(prev => isLiked ? prev + 1 : prev - 1);
-      console.error('Error liking blog:', err);
-      showToast('Failed to update like', 'error');
+      // Revert on error
+      setIsLiked(!isLiked);
+      setLikeCount(likeCount);
+      console.error("Error liking blog:", err);
+      showToast("Failed to update like", "error");
     }
   };
 
   // Handle share
   const handleShare = async (platform) => {
     const blogUrl = window.location.href;
-    const blogTitle = blog?.title || 'Check out this blog';
-    const blogDescription = blog?.body?.substring(0, 100) + '...' || '';
+    const blogTitle = blog?.title || "Check out this blog";
+    const blogDescription = blog?.body?.substring(0, 100) + "..." || "";
 
     switch (platform) {
-      case 'copy':
+      case "copy":
         try {
           await navigator.clipboard.writeText(blogUrl);
           setCopySuccess(true);
-          showToast('Link copied to clipboard!', 'success');
+          showToast("Link copied to clipboard!", "success");
           setTimeout(() => setCopySuccess(false), 2000);
         } catch (err) {
-          console.error('Failed to copy:', err);
-          const textArea = document.createElement('textarea');
+          console.error("Failed to copy:", err);
+          const textArea = document.createElement("textarea");
           textArea.value = blogUrl;
           document.body.appendChild(textArea);
           textArea.select();
-          document.execCommand('copy');
+          document.execCommand("copy");
           document.body.removeChild(textArea);
           setCopySuccess(true);
-          showToast('Link copied to clipboard!', 'success');
+          showToast("Link copied to clipboard!", "success");
           setTimeout(() => setCopySuccess(false), 2000);
         }
         break;
-      
-      case 'twitter':
+
+      case "twitter":
         window.open(
-          `https://twitter.com/intent/tweet?text=${encodeURIComponent(blogTitle)}&url=${encodeURIComponent(blogUrl)}`,
-          '_blank'
+          `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+            blogTitle
+          )}&url=${encodeURIComponent(blogUrl)}`,
+          "_blank"
         );
-        showToast('Opening Twitter...', 'info');
+        showToast("Opening Twitter...", "info");
         break;
-      
-      case 'facebook':
+
+      case "facebook":
         window.open(
-          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(blogUrl)}`,
-          '_blank'
+          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+            blogUrl
+          )}`,
+          "_blank"
         );
-        showToast('Opening Facebook...', 'info');
+        showToast("Opening Facebook...", "info");
         break;
-      
-      case 'linkedin':
+
+      case "linkedin":
         window.open(
-          `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(blogUrl)}`,
-          '_blank'
+          `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
+            blogUrl
+          )}`,
+          "_blank"
         );
-        showToast('Opening LinkedIn...', 'info');
+        showToast("Opening LinkedIn...", "info");
         break;
-      
-      case 'whatsapp':
+
+      case "whatsapp":
         window.open(
-          `https://wa.me/?text=${encodeURIComponent(blogTitle + ' ' + blogUrl)}`,
-          '_blank'
+          `https://wa.me/?text=${encodeURIComponent(
+            blogTitle + " " + blogUrl
+          )}`,
+          "_blank"
         );
-        showToast('Opening WhatsApp...', 'info');
+        showToast("Opening WhatsApp...", "info");
         break;
-      
-      case 'email':
-        window.location.href = `mailto:?subject=${encodeURIComponent(blogTitle)}&body=${encodeURIComponent(blogDescription + '\n\nRead more: ' + blogUrl)}`;
-        showToast('Opening email client...', 'info');
+
+      case "email":
+        window.location.href = `mailto:?subject=${encodeURIComponent(
+          blogTitle
+        )}&body=${encodeURIComponent(
+          blogDescription + "\n\nRead more: " + blogUrl
+        )}`;
+        showToast("Opening email client...", "info");
         break;
-      
+
       default:
         break;
     }
@@ -346,20 +398,34 @@ const BlogDetail = () => {
 
   // Format date
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
   // Profile Avatar Component
-  const ProfileAvatar = ({ user, size = 'w-10 h-10' }) => {
-    const initials = user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 
-                    user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
-    
+  const ProfileAvatar = ({ user, size = "w-10 h-10" }) => {
+    const initials =
+      user?.fullName
+        ?.split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2) ||
+      user?.name
+        ?.split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2) ||
+      "U";
+
     return (
-      <div className={`${size} rounded-full overflow-hidden shadow-lg bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold`}>
+      <div
+        className={`${size} rounded-full overflow-hidden shadow-lg bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold`}
+      >
         {initials}
       </div>
     );
@@ -388,10 +454,10 @@ const BlogDetail = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            {error || 'Blog not found'}
+            {error || "Blog not found"}
           </h2>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
             className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
           >
             Go Back Home
@@ -403,8 +469,8 @@ const BlogDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20">
-      {/* Toast Container */}
-      <div className="fixed top-0 right-0 z-50 space-y-2 p-4">
+      {/* Toast Container - Increased z-index */}
+      <div className="fixed top-0 right-0 z-[9999] space-y-2 p-4">
         {toasts.map((toast) => (
           <Toast
             key={toast.id}
@@ -418,8 +484,8 @@ const BlogDetail = () => {
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Back Button - Enhanced */}
         <button
-          onClick={() => navigate('/')}
-          className="group flex items-center space-x-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-xl mb-6 shadow-lg"
+          onClick={() => navigate("/")}
+          className="group flex items-center space-x-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-xl mb-6 shadow-lg relative"
         >
           <ArrowLeftIcon className="h-5 w-5 group-hover:translate-x-[-2px] transition-transform duration-200" />
           <span>Back to Blogs</span>
@@ -452,7 +518,9 @@ const BlogDetail = () => {
                   <ProfileAvatar user={blog.createdBy} />
                   <div>
                     <p className="font-semibold text-gray-900 dark:text-white">
-                      {blog.createdBy?.fullName || blog.createdBy?.name || 'Anonymous'}
+                      {blog.createdBy?.fullName ||
+                        blog.createdBy?.name ||
+                        "Anonymous"}
                     </p>
                     <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
                       <div className="flex items-center space-x-1">
@@ -472,87 +540,129 @@ const BlogDetail = () => {
                 {/* Action Buttons */}
                 <div className="flex items-center space-x-3">
                   {/* Like Button */}
-                  <button 
+                  <button
                     onClick={handleLike}
                     className={`flex items-center space-x-1 p-2 rounded-lg transition-colors ${
-                      isLiked 
-                        ? 'text-red-500 bg-red-50 dark:bg-red-900/20' 
-                        : 'text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
+                      isLiked
+                        ? "text-red-500 bg-red-50 dark:bg-red-900/20"
+                        : "text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                     }`}
                   >
-                    <HeartIcon className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+                    <HeartIcon
+                      className={`h-5 w-5 ${isLiked ? "fill-current" : ""}`}
+                    />
                     <span className="text-sm font-medium">{likeCount}</span>
                   </button>
 
-                  {/* Share Button */}
+                  {/* Share Button - FIXED */}
                   <div className="relative">
-                    <button 
+                    <button
                       onClick={() => setShowShareMenu(!showShareMenu)}
                       className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                     >
                       <ShareIcon className="h-5 w-5" />
                     </button>
 
-                    {/* Share Menu */}
+                    {/* Share Menu - FIXED with proper z-index and positioning */}
                     {showShareMenu && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 py-2 z-50">
-                        <button
-                          onClick={() => handleShare('copy')}
-                          className="flex items-center space-x-3 w-full px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                        >
-                          {copySuccess ? <CheckIcon className="h-4 w-4 text-green-500" /> : <CopyIcon className="h-4 w-4" />}
-                          <span>{copySuccess ? 'Copied!' : 'Copy Link'}</span>
-                        </button>
-                        <button
-                          onClick={() => handleShare('twitter')}
-                          className="flex items-center space-x-3 w-full px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                        >
-                          <div className="h-4 w-4 bg-blue-400 rounded-full"></div>
-                          <span>Share on Twitter</span>
-                        </button>
-                        <button
-                          onClick={() => handleShare('facebook')}
-                          className="flex items-center space-x-3 w-full px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                        >
-                          <div className="h-4 w-4 bg-blue-600 rounded-full"></div>
-                          <span>Share on Facebook</span>
-                        </button>
-                        <button
-                          onClick={() => handleShare('linkedin')}
-                          className="flex items-center space-x-3 w-full px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                        >
-                          <div className="h-4 w-4 bg-blue-700 rounded-full"></div>
-                          <span>Share on LinkedIn</span>
-                        </button>
-                        <button
-                          onClick={() => handleShare('whatsapp')}
-                          className="flex items-center space-x-3 w-full px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                        >
-                          <div className="h-4 w-4 bg-green-500 rounded-full"></div>
-                          <span>Share on WhatsApp</span>
-                        </button>
-                        <button
-                          onClick={() => handleShare('email')}
-                          className="flex items-center space-x-3 w-full px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                        >
-                          <div className="h-4 w-4 bg-gray-500 rounded-full"></div>
-                          <span>Share via Email</span>
-                        </button>
-                      </div>
+                      <>
+                        {/* Background overlay */}
+                        <div
+                          className="fixed inset-0 z-[9990]"
+                          onClick={() => setShowShareMenu(false)}
+                        />
+                        
+                        {/* Share dropdown */}
+                        <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 py-4 z-[9999] backdrop-blur-lg">
+                          <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                            <p className="text-sm font-bold text-gray-900 dark:text-white">
+                              Share this article
+                            </p>
+                          </div>
+                          
+                          <div className="py-2">
+                            <button
+                              onClick={() => handleShare("copy")}
+                              className="flex items-center space-x-3 w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            >
+                              {copySuccess ? (
+                                <CheckIcon className="h-5 w-5 text-green-500" />
+                              ) : (
+                                <CopyIcon className="h-5 w-5 text-blue-500" />
+                              )}
+                              <span className="font-medium">
+                                {copySuccess ? "Copied!" : "Copy Link"}
+                              </span>
+                            </button>
+                            
+                            <button
+                              onClick={() => handleShare("twitter")}
+                              className="flex items-center space-x-3 w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            >
+                              <div className="h-5 w-5 bg-blue-400 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">T</span>
+                              </div>
+                              <span className="font-medium">Share on Twitter</span>
+                            </button>
+                            
+                            <button
+                              onClick={() => handleShare("facebook")}
+                              className="flex items-center space-x-3 w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            >
+                              <div className="h-5 w-5 bg-blue-600 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">f</span>
+                              </div>
+                              <span className="font-medium">Share on Facebook</span>
+                            </button>
+                            
+                            <button
+                              onClick={() => handleShare("linkedin")}
+                              className="flex items-center space-x-3 w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            >
+                              <div className="h-5 w-5 bg-blue-700 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">in</span>
+                              </div>
+                              <span className="font-medium">Share on LinkedIn</span>
+                            </button>
+                            
+                            <button
+                              onClick={() => handleShare("whatsapp")}
+                              className="flex items-center space-x-3 w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            >
+                              <div className="h-5 w-5 bg-green-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">W</span>
+                              </div>
+                              <span className="font-medium">Share on WhatsApp</span>
+                            </button>
+                            
+                            <button
+                              onClick={() => handleShare("email")}
+                              className="flex items-center space-x-3 w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            >
+                              <div className="h-5 w-5 bg-gray-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">@</span>
+                              </div>
+                              <span className="font-medium">Share via Email</span>
+                            </button>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </div>
 
                   {/* Save Button */}
-                  <button 
+                  <button
                     onClick={handleSave}
                     disabled={saveLoading}
                     className={`p-2 rounded-lg transition-colors ${
-                      isSaved 
-                        ? 'text-green-500 bg-green-50 dark:bg-green-900/20' 
-                        : 'text-gray-500 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'
-                    } ${saveLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      isSaved
+                        ? "text-green-500 bg-green-50 dark:bg-green-900/20"
+                        : "text-gray-500 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20"
+                    } ${saveLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
-                    <BookmarkIcon className={`h-5 w-5 ${isSaved ? 'fill-current' : ''}`} />
+                    <BookmarkIcon
+                      className={`h-5 w-5 ${isSaved ? "fill-current" : ""}`}
+                    />
                   </button>
                 </div>
               </div>
@@ -560,9 +670,9 @@ const BlogDetail = () => {
 
             {/* Blog Content */}
             <div className="prose prose-lg dark:prose-invert max-w-none mb-8">
-              <div 
+              <div
                 className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap"
-                style={{ wordBreak: 'break-word' }}
+                style={{ wordBreak: "break-word" }}
               >
                 {blog.body}
               </div>
@@ -600,7 +710,9 @@ const BlogDetail = () => {
                       className="flex items-center space-x-2 bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       <SendIcon className="h-4 w-4" />
-                      <span>{commentLoading ? 'Posting...' : 'Post Comment'}</span>
+                      <span>
+                        {commentLoading ? "Posting..." : "Post Comment"}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -631,12 +743,17 @@ const BlogDetail = () => {
               </div>
             ) : (
               comments.map((comment) => (
-                <div key={comment._id} className="flex space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                <div
+                  key={comment._id}
+                  className="flex space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl"
+                >
                   <ProfileAvatar user={comment.createdBy} />
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
                       <h4 className="font-semibold text-gray-900 dark:text-white">
-                        {comment.createdBy?.fullName || comment.createdBy?.name || 'Anonymous'}
+                        {comment.createdBy?.fullName ||
+                          comment.createdBy?.name ||
+                          "Anonymous"}
                       </h4>
                       <span className="text-sm text-gray-500 dark:text-gray-400">
                         {formatDate(comment.createdAt)}
@@ -653,14 +770,6 @@ const BlogDetail = () => {
         </div>
       </div>
 
-      {/* Click outside to close share menu */}
-      {showShareMenu && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setShowShareMenu(false)}
-        ></div>
-      )}
-
       <style jsx>{`
         @keyframes slide-in {
           from {
@@ -672,7 +781,7 @@ const BlogDetail = () => {
             opacity: 1;
           }
         }
-        
+
         .animate-slide-in {
           animation: slide-in 0.3s ease-out;
         }

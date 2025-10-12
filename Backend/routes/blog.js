@@ -13,13 +13,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 // Cloudinary config (supports CLOUDINARY_URL or individual vars)
 if (process.env.CLOUDINARY_URL) {
   cloudinary.config(process.env.CLOUDINARY_URL);
-} else {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_KEY,
-    api_secret: process.env.CLOUDINARY_SECRET,
-  });
-}
+} 
+
 
 // Helper: ensure auth
 function requireAuth(req, res, next) {

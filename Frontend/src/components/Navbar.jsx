@@ -292,7 +292,7 @@ const Navbar = () => {
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
                     <div className="relative flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 transform group-hover:scale-105 group-hover:shadow-2xl">
                       <PlusIcon className="h-4 w-4" />
-                      <span>Add Blog</span>
+                      <span> Write a Blog</span>
                     </div>
                   </Link>
 

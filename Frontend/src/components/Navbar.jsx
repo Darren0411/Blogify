@@ -15,6 +15,9 @@ import {
   SunIcon,
   MoonIcon,
   BookmarkIcon,
+  ClockIcon,
+  UserIcon,
+  RefreshCwIcon,
 } from "lucide-react";
 
 const API_BASE_URL =
@@ -27,8 +30,11 @@ const Navbar = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [latestBlogs, setLatestBlogs] = useState([]);
+  const [notificationLoading, setNotificationLoading] = useState(false);
 
   // Simple Profile Avatar Component
   const ProfileAvatar = ({
@@ -103,6 +109,69 @@ const Navbar = () => {
     fetchUser();
   }, []);
 
+  // Fetch latest blogs for notifications - FIXED
+  const fetchLatestBlogs = async () => {
+    if (!user) return; // Only fetch if user is logged in
+    
+    try {
+      setNotificationLoading(true);
+      console.log("Fetching latest blogs for notifications...");
+      
+      // Use the root endpoint which returns all blogs
+      const response = await axios.get(`${API_BASE_URL}/`, {
+        withCredentials: true,
+      });
+
+      console.log("Response from root endpoint:", response.data);
+
+      if (response.data?.success && response.data.blogs) {
+        console.log("All blogs:", response.data.blogs);
+        console.log("Current user ID:", user._id);
+        
+        // Filter out current user's blogs and get latest 5
+        const otherUsersBlogs = response.data.blogs
+          .filter(blog => {
+            const isOtherUser = blog.createdBy._id !== user._id;
+            console.log(`Blog "${blog.title}" by ${blog.createdBy._id} - Include: ${isOtherUser}`);
+            return isOtherUser;
+          })
+          .slice(0, 5); // Increased to 5 for better visibility
+          
+        console.log("Filtered other users' blogs:", otherUsersBlogs);
+        setLatestBlogs(otherUsersBlogs);
+      } else {
+        console.log("No blogs found or invalid response");
+        setLatestBlogs([]);
+      }
+    } catch (error) {
+      console.error("Error fetching latest blogs:", error);
+      setLatestBlogs([]);
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
+
+  // Fetch latest blogs when user is available
+  useEffect(() => {
+    if (user) {
+      fetchLatestBlogs();
+    } else {
+      setLatestBlogs([]);
+    }
+  }, [user]);
+
+  // Auto-refresh notifications every 30 seconds when user is logged in
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(() => {
+      console.log("Auto-refreshing notifications...");
+      fetchLatestBlogs();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [user]);
+
   // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {
@@ -155,11 +224,37 @@ const Navbar = () => {
 
     // Clear user state only
     setUser(null);
+    setLatestBlogs([]);
     navigate("/");
     setIsProfileOpen(false);
   };
 
   const isActiveRoute = (path) => location.pathname === path;
+
+  // Format date for notifications
+  const formatNotificationDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      return "Just now";
+    } else if (diffInHours < 24) {
+      return `${diffInHours}h ago`;
+    } else {
+      const diffInDays = Math.floor(diffInHours / 24);
+      return `${diffInDays}d ago`;
+    }
+  };
+
+  // Handle notification click
+  const handleNotificationClick = () => {
+    setIsNotificationOpen(!isNotificationOpen);
+    if (!isNotificationOpen && user) {
+      console.log("Opening notifications, refreshing blogs...");
+      fetchLatestBlogs(); // Refresh blogs when opening
+    }
+  };
 
   // Show loading state briefly
   if (isLoading) {
@@ -292,17 +387,131 @@ const Navbar = () => {
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
                     <div className="relative flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 transform group-hover:scale-105 group-hover:shadow-2xl">
                       <PlusIcon className="h-4 w-4" />
-                      <span> Write a Blog</span>
+                      <span>Write a Blog</span>
                     </div>
                   </Link>
 
-                  {/* Notifications */}
-                  <button className="relative p-3 text-gray-600 dark:text-gray-300 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-gray-800 rounded-2xl transition-all duration-300 group">
-                    <BellIcon className="h-5 w-5 group-hover:animate-pulse" />
-                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full flex items-center justify-center font-bold animate-bounce">
-                      3
-                    </span>
-                  </button>
+                  {/* Enhanced Notifications with Latest Blogs */}
+                  <div className="relative">
+                    <button 
+                      onClick={handleNotificationClick}
+                      className="relative p-3 text-gray-600 dark:text-gray-300 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-gray-800 rounded-2xl transition-all duration-300 group"
+                    >
+                      <BellIcon className="h-5 w-5 group-hover:animate-pulse" />
+                      {latestBlogs.length > 0 && (
+                        <span className="absolute -top-1 -right-1 h-5 w-5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full flex items-center justify-center font-bold animate-bounce">
+                          {latestBlogs.length}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Enhanced Notifications Dropdown */}
+                    {isNotificationOpen && (
+                      <div className="absolute right-0 mt-3 w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/20 py-3 z-50 opacity-100 transition-opacity duration-200 max-h-96 overflow-y-auto">
+                        {/* Enhanced Header with Refresh Button */}
+                        <div className="px-6 py-3 border-b border-gray-100/50 dark:border-gray-700/50">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-semibold text-gray-900 dark:text-white">
+                                Latest Blogs
+                              </h3>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Recent posts from other writers
+                              </p>
+                            </div>
+                            <button
+                              onClick={fetchLatestBlogs}
+                              disabled={notificationLoading}
+                              className="p-2 text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 transition-colors rounded-lg hover:bg-purple-50 dark:hover:bg-gray-700"
+                              title="Refresh notifications"
+                            >
+                              <RefreshCwIcon className={`h-4 w-4 ${notificationLoading ? 'animate-spin' : ''}`} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Notifications Content */}
+                        <div className="py-2">
+                          {notificationLoading ? (
+                            <div className="px-6 py-4">
+                              <div className="animate-pulse space-y-3">
+                                {[...Array(3)].map((_, i) => (
+                                  <div key={i} className="flex space-x-3">
+                                    <div className="w-10 h-10 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+                                    <div className="flex-1 space-y-2">
+                                      <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div>
+                                      <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-1/2"></div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : latestBlogs.length > 0 ? (
+                            latestBlogs.map((blog) => (
+                              <Link
+                                key={blog._id}
+                                to={`/blog/${blog._id}`}
+                                className="flex items-start space-x-3 px-6 py-3 hover:bg-purple-50 dark:hover:bg-gray-700/50 transition-all duration-200"
+                                onClick={() => setIsNotificationOpen(false)}
+                              >
+                                {/* Author Avatar */}
+                                <ProfileAvatar 
+                                  user={blog.createdBy} 
+                                  size="w-10 h-10" 
+                                  textSize="text-xs"
+                                />
+                                
+                                {/* Notification Content */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    <UserIcon className="h-3 w-3 text-purple-500" />
+                                    <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
+                                      {blog.createdBy.fullName || blog.createdBy.name}
+                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      posted a new blog
+                                    </span>
+                                  </div>
+                                  
+                                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate mb-1">
+                                    {blog.title}
+                                  </h4>
+                                  
+                                  <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400">
+                                    <ClockIcon className="h-3 w-3" />
+                                    <span>{formatNotificationDate(blog.createdAt)}</span>
+                                  </div>
+                                </div>
+                              </Link>
+                            ))
+                          ) : (
+                            <div className="px-6 py-8 text-center">
+                              <BellIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                                No new blogs to show
+                              </p>
+                              <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">
+                                Check back later for updates
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Footer */}
+                        {latestBlogs.length > 0 && (
+                          <div className="border-t border-gray-100/50 dark:border-gray-700/50 pt-2">
+                            <Link
+                              to="/"
+                              className="block px-6 py-3 text-center text-sm font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-gray-700/50 transition-all duration-200"
+                              onClick={() => setIsNotificationOpen(false)}
+                            >
+                              View All Blogs
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Profile Dropdown */}
                   <div className="relative">
@@ -572,10 +781,13 @@ const Navbar = () => {
       </nav>
 
       {/* Click outside handlers */}
-      {isProfileOpen && (
+      {(isProfileOpen || isNotificationOpen) && (
         <div
           className="fixed inset-0 z-40"
-          onClick={() => setIsProfileOpen(false)}
+          onClick={() => {
+            setIsProfileOpen(false);
+            setIsNotificationOpen(false);
+          }}
         ></div>
       )}
 

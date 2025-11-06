@@ -113,7 +113,6 @@ const AddBlog = () => {
           navigate('/login');
         }
       } catch (err) {
-        console.error('Auth check failed:', err);
         showToast('Please login to create a blog', 'error');
         navigate('/login');
       }

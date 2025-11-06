@@ -91,14 +91,12 @@ const Navbar = () => {
         });
 
         if (response.data?.success && response.data.user) {
-          console.log("User from backend:", response.data.user);
           setUser(response.data.user);
         } else {
           // Clear user if no valid response
           setUser(null);
         }
       } catch (error) {
-        console.error("Auth error:", error);
         // If 401/403, user is not authenticated
         setUser(null);
       } finally {
@@ -115,18 +113,14 @@ const Navbar = () => {
     
     try {
       setNotificationLoading(true);
-      console.log("Fetching latest blogs for notifications...");
       
       // Use the root endpoint which returns all blogs
       const response = await axios.get(`${API_BASE_URL}/`, {
         withCredentials: true,
       });
 
-      console.log("Response from root endpoint:", response.data);
 
       if (response.data?.success && response.data.blogs) {
-        console.log("All blogs:", response.data.blogs);
-        console.log("Current user ID:", user._id);
         
         // Filter out current user's blogs and get latest 5
         const otherUsersBlogs = response.data.blogs
@@ -137,14 +131,13 @@ const Navbar = () => {
           })
           .slice(0, 5); // Increased to 5 for better visibility
           
-        console.log("Filtered other users' blogs:", otherUsersBlogs);
+
         setLatestBlogs(otherUsersBlogs);
       } else {
-        console.log("No blogs found or invalid response");
+
         setLatestBlogs([]);
       }
     } catch (error) {
-      console.error("Error fetching latest blogs:", error);
       setLatestBlogs([]);
     } finally {
       setNotificationLoading(false);
@@ -798,3 +791,4 @@ const Navbar = () => {
 };
 
 export default Navbar;
+

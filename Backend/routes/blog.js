@@ -17,17 +17,17 @@ if (process.env.CLOUDINARY_URL) {
 
 
 // Helper: ensure auth
-function requireAuth(req, res, next) {
-  if (!req.user) {
-    return res.status(401).json({ success: false, message: 'Authentication required' });
-  }
-  next();
-}
+// function requireAuth(req, res, next) {
+//   if (!req.user) {
+//     return res.status(401).json({ success: false, message: 'Authentication required' });
+//   }
+//   next();
+// }
 
 // IMPORTANT: Specific routes MUST come before parameterized routes (:id)
 
 // Get user's saved blogs - MUST come before /:id route
-router.get('/saved', requireAuth, async (req, res) => {
+router.get('/saved', async (req, res) => {
   try {
     const userId = req.user._id;
     
@@ -52,7 +52,7 @@ router.get('/saved', requireAuth, async (req, res) => {
 });
 
 // Fetch logged in user's blogs
-router.get('/my-blogs', requireAuth, async (req, res) => {
+router.get('/my-blogs', async (req, res) => {
   try {
     const userId = req.user._id;
 
@@ -97,7 +97,7 @@ router.get('/my-blogs', requireAuth, async (req, res) => {
 });
 
 // Create blog
-router.post('/', requireAuth, upload.single('coverImage'), async (req, res) => {
+router.post('/', upload.single('coverImage'), async (req, res) => {
   try {
     const { title, body } = req.body;
     if (!title || !body) {
@@ -168,7 +168,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Delete a blog (only by the author) - MUST come after /:id GET route
-router.delete('/:id', requireAuth, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user._id;
@@ -219,7 +219,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
 });
 
 // Update a blog (only by the author) - MUST come after /:id GET route
-router.put('/:id', requireAuth, async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user._id;
@@ -280,7 +280,7 @@ router.put('/:id', requireAuth, async (req, res) => {
 });
 
 // Like/Unlike a blog - UPDATED
-router.post('/:id/like', requireAuth, async (req, res) => {
+router.post('/:id/like', async (req, res) => {
   try {
     const blogId = req.params.id;
     const userId = req.user._id;
@@ -335,7 +335,7 @@ router.post('/:id/like', requireAuth, async (req, res) => {
 });
 
 // Check if a blog is liked by current user
-router.get('/:id/is-liked', requireAuth, async (req, res) => {
+router.get('/:id/is-liked', async (req, res) => {
   try {
     const blogId = req.params.id;
     const userId = req.user._id;
@@ -359,7 +359,7 @@ router.get('/:id/is-liked', requireAuth, async (req, res) => {
 });
 
 // Save/Unsave a blog
-router.post('/:id/save', requireAuth, async (req, res) => {
+router.post('/:id/save',async (req, res) => {
   try {
     const blogId = req.params.id;
     const userId = req.user._id;
@@ -391,7 +391,7 @@ router.post('/:id/save', requireAuth, async (req, res) => {
 });
 
 // Check if a blog is saved by current user
-router.get('/:id/is-saved', requireAuth, async (req, res) => {
+router.get('/:id/is-saved',async (req, res) => {
   try {
     const blogId = req.params.id;
     const userId = req.user._id;
@@ -421,7 +421,7 @@ router.get('/:id/comments', async (req, res) => {
 });
 
 // Add comment to a blog
-router.post('/:id/comments', requireAuth, async (req, res) => {
+router.post('/:id/comments',async (req, res) => {
   try {
     const { content } = req.body;
     if (!content || !content.trim()) {

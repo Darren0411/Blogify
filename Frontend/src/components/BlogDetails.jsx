@@ -770,7 +770,8 @@ const BlogDetail = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>
+        {`
         @keyframes slide-in {
           from {
             transform: translateX(100%);
@@ -785,7 +786,8 @@ const BlogDetail = () => {
         .animate-slide-in {
           animation: slide-in 0.3s ease-out;
         }
-      `}</style>
+        `}
+      </style>
     </div>
   );
 };

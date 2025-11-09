@@ -227,11 +227,6 @@ const AddBlog = () => {
       submitData.append('body', formData.body.trim());
       submitData.append('coverImage', coverImage);
       
-      console.log('Submitting blog data:', {
-        title: formData.title,
-        body: formData.body.substring(0, 100) + '...',
-        coverImage: coverImage?.name
-      });
 
       // Make API call to create blog
       const response = await axios.post(
@@ -513,3 +508,4 @@ const AddBlog = () => {
 };
 
 export default AddBlog;
+

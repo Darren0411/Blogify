@@ -13,16 +13,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 // Cloudinary config (supports CLOUDINARY_URL or individual vars)
 if (process.env.CLOUDINARY_URL) {
   cloudinary.config(process.env.CLOUDINARY_URL);
-} 
-
-
-// Helper: ensure auth
-// function requireAuth(req, res, next) {
-//   if (!req.user) {
-//     return res.status(401).json({ success: false, message: 'Authentication required' });
-//   }
-//   next();
-// }
+}
 
 // IMPORTANT: Specific routes MUST come before parameterized routes (:id)
 
@@ -279,7 +270,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Like/Unlike a blog - UPDATED
+// Like/Unlike a blog - UPDATED WITH RESTRICTION
 router.post('/:id/like', async (req, res) => {
   try {
     const blogId = req.params.id;
@@ -288,6 +279,14 @@ router.post('/:id/like', async (req, res) => {
     const blog = await Blog.findById(blogId);
     if (!blog) {
       return res.status(404).json({ success: false, message: 'Blog not found' });
+    }
+
+    // ✅ NEW: Check if user is trying to like their own blog
+    if (blog.createdBy.toString() === userId.toString()) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'You cannot like your own blog' 
+      });
     }
 
     const user = await User.findById(userId);
@@ -346,11 +345,14 @@ router.get('/:id/is-liked', async (req, res) => {
     }
 
     const isLiked = blog.likedBy.includes(userId);
+    // ✅ NEW: Add flag if user is the author
+    const isAuthor = blog.createdBy.toString() === userId.toString();
 
     res.json({ 
       success: true, 
       liked: isLiked,
-      likes: blog.likes || 0
+      likes: blog.likes || 0,
+      isAuthor: isAuthor  // Frontend can use this to hide like button
     });
   } catch (error) {
     console.error('Error checking liked status:', error);
@@ -359,7 +361,7 @@ router.get('/:id/is-liked', async (req, res) => {
 });
 
 // Save/Unsave a blog
-router.post('/:id/save',async (req, res) => {
+router.post('/:id/save', async (req, res) => {
   try {
     const blogId = req.params.id;
     const userId = req.user._id;
@@ -391,7 +393,7 @@ router.post('/:id/save',async (req, res) => {
 });
 
 // Check if a blog is saved by current user
-router.get('/:id/is-saved',async (req, res) => {
+router.get('/:id/is-saved', async (req, res) => {
   try {
     const blogId = req.params.id;
     const userId = req.user._id;
@@ -420,8 +422,8 @@ router.get('/:id/comments', async (req, res) => {
   }
 });
 
-// Add comment to a blog
-router.post('/:id/comments',async (req, res) => {
+// Add comment to a blog - UPDATED WITH RESTRICTION
+router.post('/:id/comments', async (req, res) => {
   try {
     const { content } = req.body;
     if (!content || !content.trim()) {
@@ -429,7 +431,17 @@ router.post('/:id/comments',async (req, res) => {
     }
 
     const blog = await Blog.findById(req.params.id);
-    if (!blog) return res.status(404).json({ success: false, message: 'Blog not found' });
+    if (!blog) {
+      return res.status(404).json({ success: false, message: 'Blog not found' });
+    }
+
+    // ✅ NEW: Check if user is trying to comment on their own blog
+    if (blog.createdBy.toString() === req.user._id.toString()) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'You cannot comment on your own blog' 
+      });
+    }
 
     const comment = await Comment.create({
       content: content.trim(),

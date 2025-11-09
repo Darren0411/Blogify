@@ -91,6 +91,7 @@ const BlogDetail = () => {
   const [isSaved, setIsSaved] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [isAuthor, setIsAuthor] = useState(false); // ✅ NEW: Track if current user is the author
 
   // Toast functions
   const showToast = (message, type = "info") => {
@@ -132,6 +133,13 @@ const BlogDetail = () => {
     };
     checkAuth();
   }, []);
+
+  // ✅ NEW: Check if current user is the author
+  useEffect(() => {
+    if (user && blog) {
+      setIsAuthor(blog.createdBy._id === user._id);
+    }
+  }, [user, blog]);
 
   // Check if blog is saved by current user
   useEffect(() => {
@@ -247,6 +255,12 @@ const BlogDetail = () => {
       return;
     }
 
+    // ✅ NEW: Check if user is the author
+    if (isAuthor) {
+      showToast("You cannot comment on your own blog", "error");
+      return;
+    }
+
     if (!commentContent.trim()) {
       showToast("Please enter a comment", "error");
       return;
@@ -267,7 +281,11 @@ const BlogDetail = () => {
       }
     } catch (err) {
       console.error("Error adding comment:", err);
-      showToast("Failed to add comment", "error");
+      // ✅ Show backend error message if available
+      showToast(
+        err.response?.data?.message || "Failed to add comment",
+        "error"
+      );
     } finally {
       setCommentLoading(false);
     }
@@ -280,11 +298,17 @@ const BlogDetail = () => {
       return;
     }
 
+    // ✅ NEW: Check if user is the author
+    if (isAuthor) {
+      showToast("You cannot like your own blog", "error");
+      return;
+    }
+
     try {
       // Optimistic update
       const newLikedState = !isLiked;
       const newLikeCount = newLikedState ? likeCount + 1 : likeCount - 1;
-      
+
       setIsLiked(newLikedState);
       setLikeCount(newLikeCount);
 
@@ -298,7 +322,10 @@ const BlogDetail = () => {
         // Update with actual server response
         setIsLiked(response.data.liked);
         setLikeCount(response.data.likes);
-        showToast(response.data.liked ? "Added like" : "Removed like", "success");
+        showToast(
+          response.data.liked ? "Added like" : "Removed like",
+          "success"
+        );
       } else {
         // Revert on failure
         setIsLiked(!newLikedState);
@@ -310,7 +337,11 @@ const BlogDetail = () => {
       setIsLiked(!isLiked);
       setLikeCount(likeCount);
       console.error("Error liking blog:", err);
-      showToast("Failed to update like", "error");
+      // ✅ Show backend error message if available
+      showToast(
+        err.response?.data?.message || "Failed to update like",
+        "error"
+      );
     }
   };
 
@@ -469,7 +500,7 @@ const BlogDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20">
-      {/* Toast Container - Increased z-index */}
+      {/* Toast Container */}
       <div className="fixed top-0 right-0 z-[9999] space-y-2 p-4">
         {toasts.map((toast) => (
           <Toast
@@ -482,7 +513,7 @@ const BlogDetail = () => {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Back Button - Enhanced */}
+        {/* Back Button */}
         <button
           onClick={() => navigate("/")}
           className="group flex items-center space-x-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-xl mb-6 shadow-lg relative"
@@ -539,22 +570,29 @@ const BlogDetail = () => {
 
                 {/* Action Buttons */}
                 <div className="flex items-center space-x-3">
-                  {/* Like Button */}
-                  <button
-                    onClick={handleLike}
-                    className={`flex items-center space-x-1 p-2 rounded-lg transition-colors ${
-                      isLiked
-                        ? "text-red-500 bg-red-50 dark:bg-red-900/20"
-                        : "text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    }`}
-                  >
-                    <HeartIcon
-                      className={`h-5 w-5 ${isLiked ? "fill-current" : ""}`}
-                    />
-                    <span className="text-sm font-medium">{likeCount}</span>
-                  </button>
+                  {/* ✅ UPDATED: Like Button - Hide if author */}
+                  {!isAuthor ? (
+                    <button
+                      onClick={handleLike}
+                      className={`flex items-center space-x-1 p-2 rounded-lg transition-colors ${
+                        isLiked
+                          ? "text-red-500 bg-red-50 dark:bg-red-900/20"
+                          : "text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      }`}
+                    >
+                      <HeartIcon
+                        className={`h-5 w-5 ${isLiked ? "fill-current" : ""}`}
+                      />
+                      <span className="text-sm font-medium">{likeCount}</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center space-x-1 p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+                      <HeartIcon className="h-5 w-5" />
+                      <span className="text-sm font-medium">{likeCount}</span>
+                    </div>
+                  )}
 
-                  {/* Share Button - FIXED */}
+                  {/* Share Button */}
                   <div className="relative">
                     <button
                       onClick={() => setShowShareMenu(!showShareMenu)}
@@ -563,23 +601,21 @@ const BlogDetail = () => {
                       <ShareIcon className="h-5 w-5" />
                     </button>
 
-                    {/* Share Menu - FIXED with proper z-index and positioning */}
+                    {/* Share Menu */}
                     {showShareMenu && (
                       <>
-                        {/* Background overlay */}
                         <div
                           className="fixed inset-0 z-[9990]"
                           onClick={() => setShowShareMenu(false)}
                         />
-                        
-                        {/* Share dropdown */}
+
                         <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 py-4 z-[9999] backdrop-blur-lg">
                           <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
                             <p className="text-sm font-bold text-gray-900 dark:text-white">
                               Share this article
                             </p>
                           </div>
-                          
+
                           <div className="py-2">
                             <button
                               onClick={() => handleShare("copy")}
@@ -594,55 +630,75 @@ const BlogDetail = () => {
                                 {copySuccess ? "Copied!" : "Copy Link"}
                               </span>
                             </button>
-                            
+
                             <button
                               onClick={() => handleShare("twitter")}
                               className="flex items-center space-x-3 w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                             >
                               <div className="h-5 w-5 bg-blue-400 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">T</span>
+                                <span className="text-white text-xs font-bold">
+                                  T
+                                </span>
                               </div>
-                              <span className="font-medium">Share on Twitter</span>
+                              <span className="font-medium">
+                                Share on Twitter
+                              </span>
                             </button>
-                            
+
                             <button
                               onClick={() => handleShare("facebook")}
                               className="flex items-center space-x-3 w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                             >
                               <div className="h-5 w-5 bg-blue-600 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">f</span>
+                                <span className="text-white text-xs font-bold">
+                                  f
+                                </span>
                               </div>
-                              <span className="font-medium">Share on Facebook</span>
+                              <span className="font-medium">
+                                Share on Facebook
+                              </span>
                             </button>
-                            
+
                             <button
                               onClick={() => handleShare("linkedin")}
                               className="flex items-center space-x-3 w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                             >
                               <div className="h-5 w-5 bg-blue-700 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">in</span>
+                                <span className="text-white text-xs font-bold">
+                                  in
+                                </span>
                               </div>
-                              <span className="font-medium">Share on LinkedIn</span>
+                              <span className="font-medium">
+                                Share on LinkedIn
+                              </span>
                             </button>
-                            
+
                             <button
                               onClick={() => handleShare("whatsapp")}
                               className="flex items-center space-x-3 w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                             >
                               <div className="h-5 w-5 bg-green-500 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">W</span>
+                                <span className="text-white text-xs font-bold">
+                                  W
+                                </span>
                               </div>
-                              <span className="font-medium">Share on WhatsApp</span>
+                              <span className="font-medium">
+                                Share on WhatsApp
+                              </span>
                             </button>
-                            
+
                             <button
                               onClick={() => handleShare("email")}
                               className="flex items-center space-x-3 w-full px-5 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                             >
                               <div className="h-5 w-5 bg-gray-500 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">@</span>
+                                <span className="text-white text-xs font-bold">
+                                  @
+                                </span>
                               </div>
-                              <span className="font-medium">Share via Email</span>
+                              <span className="font-medium">
+                                Share via Email
+                              </span>
                             </button>
                           </div>
                         </div>
@@ -689,35 +745,46 @@ const BlogDetail = () => {
             </h2>
           </div>
 
-          {/* Comment Form */}
+          {/* ✅ UPDATED: Comment Form - Hide if author or not logged in */}
           {user ? (
-            <form onSubmit={handleCommentSubmit} className="mb-8">
-              <div className="flex space-x-4">
-                <ProfileAvatar user={user} />
-                <div className="flex-1">
-                  <textarea
-                    value={commentContent}
-                    onChange={(e) => setCommentContent(e.target.value)}
-                    placeholder="Write a comment..."
-                    className="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    rows="3"
-                    disabled={commentLoading}
-                  />
-                  <div className="flex justify-end mt-3">
-                    <button
-                      type="submit"
-                      disabled={commentLoading || !commentContent.trim()}
-                      className="flex items-center space-x-2 bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <SendIcon className="h-4 w-4" />
-                      <span>
-                        {commentLoading ? "Posting..." : "Post Comment"}
-                      </span>
-                    </button>
-                  </div>
+            isAuthor ? (
+              <div className="mb-8 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
+                <div className="flex items-center space-x-2 text-yellow-800 dark:text-yellow-400">
+                  <InfoIcon className="h-5 w-5" />
+                  <p className="font-medium">
+                    You cannot comment on your own blog
+                  </p>
                 </div>
               </div>
-            </form>
+            ) : (
+              <form onSubmit={handleCommentSubmit} className="mb-8">
+                <div className="flex space-x-4">
+                  <ProfileAvatar user={user} />
+                  <div className="flex-1">
+                    <textarea
+                      value={commentContent}
+                      onChange={(e) => setCommentContent(e.target.value)}
+                      placeholder="Write a comment..."
+                      className="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                      rows="3"
+                      disabled={commentLoading}
+                    />
+                    <div className="flex justify-end mt-3">
+                      <button
+                        type="submit"
+                        disabled={commentLoading || !commentContent.trim()}
+                        className="flex items-center space-x-2 bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <SendIcon className="h-4 w-4" />
+                        <span>
+                          {commentLoading ? "Posting..." : "Post Comment"}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            )
           ) : (
             <div className="mb-8 p-4 bg-gray-100 dark:bg-gray-700 rounded-xl text-center">
               <p className="text-gray-600 dark:text-gray-400 mb-3">

@@ -26,10 +26,19 @@ mongoose
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('Mongo connection error:', err));
 
+  const allowed = [
+  'http://localhost:5173',                     // local vite dev
+  'https://your-frontend.vercel.app',          // replace with Vercel URL after deploy
+];
+
 // CORS
 app.use(
   cors({
-    origin: 'http://localhost:5173',
+    origin: (origin, callback) => {
+    if (!origin) return callback(null, true); 
+    if (allowed.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
     credentials: true,
      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   })
@@ -42,19 +51,19 @@ app.use(cookieParser());
 app.use(checkforAuthenticationCookie('token'));
 app.use(express.static(path.resolve('./public')));
 
-// Session
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: false, // set true in production (HTTPS)
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
-    },
-  })
-);
+// session settings (for cross-site cookies)
+app.set('trust proxy', 1); // required if behind render proxy
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: true,      // must be true in production (HTTPS)
+    httpOnly: true,
+    sameSite: 'none',  // allow cross-site cookies
+    maxAge: 24*60*60*1000
+  }
+}));
 
 // Routes
 app.use('/user', userRoute);

@@ -32,8 +32,8 @@ app.set('trust proxy', 1);
 
 const allowedOrigins = [
   'http://localhost:5173',                       // local dev
-  'https://your-vercel-url.vercel.app',          // ← replace with your Vercel URL
-  // 'https://www.your-custom-domain.com'        // optional custom domain
+  'https://blogify-aeb9em7ez-darrens-projects-945d9eea.vercel.app',       // deployed frontend
+  'https://blogify.darrensprojects.com'          // deployed frontend custom domain
 ];
 
 // CORS

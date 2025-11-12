@@ -1,40 +1,38 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
-import {
-  MailIcon,
-  LockIcon,
-  EyeIcon,
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { 
+  MailIcon, 
+  LockIcon, 
+  EyeIcon, 
   EyeOffIcon,
   LogInIcon,
-  ArrowRightIcon,
-} from "lucide-react";
-import { useAuth } from "../contexts/AuthContext"; // <- make sure path is correct
+  ArrowRightIcon
+} from 'lucide-react';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4500";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4500';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { refreshUser, setUser } = useAuth(); // refreshUser updates context; setUser optional
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
   const validateForm = () => {
     const newErrors = {};
     if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
+      newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
+      newErrors.email = 'Please enter a valid email address';
     }
-    if (!formData.password) newErrors.password = "Password is required";
+    if (!formData.password) newErrors.password = 'Password is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -44,38 +42,38 @@ const Login = () => {
     if (!validateForm()) return;
 
     setIsLoading(true);
-    setErrors((prev) => ({ ...prev, submit: "" }));
+    setErrors(prev => ({ ...prev, submit: '' }));
 
     try {
       const res = await axios.post(
         `${API_BASE_URL}/user/signin`,
         {
-          email: formData.email.trim().toLowerCase(),
-          password: formData.password,
+          email: formData.email.trim().toLowerCase(), 
+          password: formData.password
         },
         {
           withCredentials: true, // receive/set HttpOnly JWT cookie
           headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          }
         }
       );
 
       if (res.data?.success) {
-        // refresh user from server so AuthContext updates
-        if (typeof refreshUser === "function") {
-          await refreshUser();
-        }
-        console.log("Login successful:", res.data);
-        navigate("/");
+        // Store user info in localStorage for UI purposes (JWT is in HttpOnly cookie)
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        localStorage.setItem('loggedIn', 'true');
+        
+        console.log('Login successful:', res.data);
+        navigate('/');
       } else {
-        setErrors({ submit: res.data?.message || "Login failed" });
+        setErrors({ submit: res.data?.message || 'Login failed' });
       }
     } catch (err) {
-      console.error("Login error:", err);
+      console.error('Login error:', err);
       setErrors({
-        submit: err.response?.data?.message || "Unable to sign in. Please check credentials.",
+        submit: err.response?.data?.message || 'Unable to sign in. Please check credentials.'
       });
     } finally {
       setIsLoading(false);
@@ -109,8 +107,8 @@ const Login = () => {
                 autoComplete="email"
                 className={`w-full px-4 py-4 border-2 rounded-2xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-4 transition-all duration-300 ${
                   errors.email
-                    ? "border-red-300 dark:border-red-600 focus:border-red-500 dark:focus:border-red-400 focus:ring-red-500/20 dark:focus:ring-red-400/20"
-                    : "border-gray-300 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-indigo-500/20 dark:focus:ring-indigo-400/20"
+                    ? 'border-red-300 dark:border-red-600 focus:border-red-500 dark:focus:border-red-400 focus:ring-red-500/20 dark:focus:ring-red-400/20'
+                    : 'border-gray-300 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-indigo-500/20 dark:focus:ring-indigo-400/20'
                 }`}
               />
               {errors.email && <p className="mt-2 text-red-500 dark:text-red-400 text-sm">{errors.email}</p>}
@@ -123,7 +121,7 @@ const Login = () => {
               </label>
               <div className="relative">
                 <input
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
@@ -131,8 +129,8 @@ const Login = () => {
                   autoComplete="current-password"
                   className={`w-full px-4 py-4 pr-12 border-2 rounded-2xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-4 transition-all duration-300 ${
                     errors.password
-                      ? "border-red-300 dark:border-red-600 focus:border-red-500 dark:focus:border-red-400 focus:ring-red-500/20 dark:focus:ring-red-400/20"
-                      : "border-gray-300 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-indigo-500/20 dark:focus:ring-indigo-400/20"
+                      ? 'border-red-300 dark:border-red-600 focus:border-red-500 dark:focus:border-red-400 focus:ring-red-500/20 dark:focus:ring-red-400/20'
+                      : 'border-gray-300 dark:border-gray-600 focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-indigo-500/20 dark:focus:ring-indigo-400/20'
                   }`}
                 />
                 <button
@@ -147,7 +145,10 @@ const Login = () => {
             </div>
 
             <div className="text-right">
-              <Link to="/forgot-password" className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold hover:underline transition-colors">
+              <Link
+                to="/forgot-password"
+                className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold hover:underline transition-colors"
+              >
                 Forgot Password?
               </Link>
             </div>
@@ -179,8 +180,11 @@ const Login = () => {
 
           <div className="mt-8 text-center">
             <p className="text-gray-600 dark:text-gray-400">
-              Don't have an account?{" "}
-              <Link to="/signup" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-bold hover:underline transition-colors inline-flex items-center gap-1">
+              Don't have an account?{' '}
+              <Link
+                to="/signup"
+                className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-bold hover:underline transition-colors inline-flex items-center gap-1"
+              >
                 Create Account
                 <ArrowRightIcon className="h-4 w-4" />
               </Link>
@@ -189,7 +193,10 @@ const Login = () => {
         </div>
 
         <div className="text-center mt-6">
-          <Link to="/" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm hover:underline transition-colors">
+          <Link
+            to="/"
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm hover:underline transition-colors"
+          >
             ← Back to Home
           </Link>
         </div>

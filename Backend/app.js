@@ -26,23 +26,50 @@ mongoose
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('Mongo connection error:', err));
 
-  const allowed = [
-  'http://localhost:5173',                     // local vite dev
-  'https://your-frontend.vercel.app',          // replace with Vercel URL after deploy
+
+// trust proxy for secure cookies behind Render's proxy
+app.set('trust proxy', 1);
+
+const allowedOrigins = [
+  'http://localhost:5173',                       // local dev
+  'https://your-vercel-url.vercel.app',          // ← replace with your Vercel URL
+  // 'https://www.your-custom-domain.com'        // optional custom domain
 ];
 
 // CORS
-app.use(
-  cors({
-    origin: (origin, callback) => {
-    if (!origin) return callback(null, true); 
-    if (allowed.includes(origin)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
+app.use(cors({
+  origin: (origin, callback) => {
+    // allow requests like Postman/curl with no origin
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'), false);
+    }
   },
-    credentials: true,
-     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  })
-);
+  credentials: true,            // allow cookies / credentials
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+
+app.options('*', cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
+
+// session settings (for cross-site cookies)
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: true,       // MUST be true in production (HTTPS)
+    httpOnly: true,
+    sameSite: 'none',   // required for cross-site cookies
+    maxAge: 24*60*60*1000
+  }
+}));
 
 // Middleware
 app.use(express.json());
@@ -51,19 +78,6 @@ app.use(cookieParser());
 app.use(checkforAuthenticationCookie('token'));
 app.use(express.static(path.resolve('./public')));
 
-// session settings (for cross-site cookies)
-app.set('trust proxy', 1); // required if behind render proxy
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: true,      // must be true in production (HTTPS)
-    httpOnly: true,
-    sameSite: 'none',  // allow cross-site cookies
-    maxAge: 24*60*60*1000
-  }
-}));
 
 // Routes
 app.use('/user', userRoute);

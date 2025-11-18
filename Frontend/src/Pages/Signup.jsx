@@ -96,7 +96,6 @@ const Signup = () => {
         localStorage.setItem('user', JSON.stringify(res.data.user));
         localStorage.setItem('loggedIn', 'true');
         
-        console.log('Signup successful:', res.data);
         navigate('/login');
       } else {
         setErrors({ submit: res.data?.message || 'Signup failed' });

@@ -65,7 +65,7 @@ const Login = () => {
         localStorage.setItem('user', JSON.stringify(res.data.user));
         localStorage.setItem('loggedIn', 'true');
         
-        console.log('Login successful:', res.data);
+      
         navigate('/');
       } else {
         setErrors({ submit: res.data?.message || 'Login failed' });

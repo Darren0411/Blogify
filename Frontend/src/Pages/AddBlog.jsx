@@ -487,7 +487,8 @@ const AddBlog = () => {
       
       <Footer/>
 
-      <style jsx>{`
+      <style>
+        {`
         @keyframes slide-in {
           from {
             transform: translateX(100%);
@@ -502,7 +503,8 @@ const AddBlog = () => {
         .animate-slide-in {
           animation: slide-in 0.3s ease-out;
         }
-      `}</style>
+        `}
+      </style>
     </div>
   );
 };

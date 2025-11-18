@@ -126,7 +126,7 @@ const Navbar = () => {
         const otherUsersBlogs = response.data.blogs
           .filter(blog => {
             const isOtherUser = blog.createdBy._id !== user._id;
-            console.log(`Blog "${blog.title}" by ${blog.createdBy._id} - Include: ${isOtherUser}`);
+            // console.log(`Blog "${blog.title}" by ${blog.createdBy._id} - Include: ${isOtherUser}`);
             return isOtherUser;
           })
           .slice(0, 5); // Increased to 5 for better visibility

@@ -1,7 +1,7 @@
 import { validateUser } from '../services/authentication.js';
 
 // Attaches req.user if a valid token cookie exists; never blocks the request.
-export function checkforAuthenticationCookie(cookieName = 'token') {
+export function checkforAuthenticationCookie(cookieName = 'blogify_token') {
   return (req, res, next) => {
     const token = req.cookies?.[cookieName];
     if (!token) {

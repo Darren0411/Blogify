@@ -29,7 +29,7 @@ router.post('/signin', async (req, res) => {
     const { token, user } = await User.matchPasswordAndGenerateToken(email, password);
 
     res
-      .cookie('token', token, {
+      .cookie('blogify_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         maxAge: 24 * 60 * 60 * 1000,
@@ -42,7 +42,7 @@ router.post('/signin', async (req, res) => {
 });
 
 router.post('/logout', (req, res) => {
-  res.clearCookie('token').json({ success: true, message: 'Logged out' });
+  res.clearCookie('blogify_token').json({ success: true, message: 'Logged out' });
 });
 
 

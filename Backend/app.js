@@ -32,24 +32,27 @@ const allowedOrigins = [
 // CORS Middleware - FIRST
 app.use(cors({
   origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
-    if (origin.includes('vercel.app') || origin.includes('localhost')) {
+    
+    // Allow all vercel.app subdomains and localhost
+    if (origin.includes('vercel.app') || origin.includes('localhost') || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.log('CORS blocked for origin:', origin);
+      callback(null, false);
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
-  exposedHeaders: ['Set-Cookie'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   optionsSuccessStatus: 200
 }));
 
 // Explicit CORS headers
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
+  if (allowedOrigins.includes(origin) || (origin && origin.includes('vercel.app'))) {
     res.header('Access-Control-Allow-Origin', origin);
   }
   res.header('Access-Control-Allow-Credentials', 'true');
@@ -62,11 +65,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Session
+// Session - Updated cookie name
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret',
   resave: false,
   saveUninitialized: false,
+  name: 'blogify_session', // Changed session cookie name
   cookie: {
     secure: true,
     httpOnly: true,
@@ -79,15 +83,33 @@ app.use(session({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(checkforAuthenticationCookie('token'));
+// Changed from 'token' to 'blogify_token' to avoid Vercel conflicts
+app.use(checkforAuthenticationCookie('blogify_token'));
 app.use(express.static(path.resolve('./public')));
 
-// Health check
+// Health check with cookie debug info
 app.get('/health', (req, res) => {
+  console.log('Cookies received:', req.cookies);
+  console.log('Headers received:', req.headers);
+  
   res.json({ 
     status: 'OK', 
-    timestamp: new Date().toISOString() 
+    timestamp: new Date().toISOString(),
+    cookies: Object.keys(req.cookies || {}),
+    user: req.user || null
   });
+});
+
+// Debug middleware to see what's happening
+app.use((req, res, next) => {
+  console.log('=== REQUEST DEBUG ===');
+  console.log('Method:', req.method);
+  console.log('Path:', req.path);
+  console.log('Cookies:', req.cookies);
+  console.log('Authorization header:', req.headers.authorization);
+  console.log('User:', req.user);
+  console.log('=====================');
+  next();
 });
 
 // Routes
@@ -126,6 +148,7 @@ const PORT = process.env.PORT || 4500;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Allowed CORS origins:', allowedOrigins);
+  console.log('Using cookie name: blogify_token');
 });
 
 export default app;

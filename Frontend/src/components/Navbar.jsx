@@ -36,41 +36,21 @@ const Navbar = () => {
   const [latestBlogs, setLatestBlogs] = useState([]);
   const [notificationLoading, setNotificationLoading] = useState(false);
 
-  // Simple Profile Avatar Component
+  // Simple Profile Avatar Component - FIXED
   const ProfileAvatar = ({
     user,
     size = "w-10 h-10",
     textSize = "text-sm",
   }) => {
     const initials =
-      user?.fullName
-        ?.split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2) ||
       user?.name
         ?.split(" ")
         .map((n) => n[0])
         .join("")
         .toUpperCase()
-        .slice(0, 2) ||
-      "U";
+        .slice(0, 2) || "U";
 
-    // If user is logged in, show profile picture from public folder
-    if (user) {
-      return (
-        <div className={`${size} rounded-full overflow-hidden shadow-lg`}>
-          <img
-            src="./image.png" // Your profile image from public folder
-            alt={user?.fullName || user?.name || "User"}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      );
-    }
-
-    // If no user (not logged in), show initials
+    // Always show initials - reliable and works everywhere
     return (
       <div
         className={`${size} bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold ${textSize} shadow-lg`}
@@ -87,7 +67,10 @@ const Navbar = () => {
         // Only fetch from backend using cookies
         const response = await axios.get(`${API_BASE_URL}/user/me`, {
           withCredentials: true,
-          headers: { Accept: "application/json" },
+          headers: { 
+            Accept: "application/json",
+            "Content-Type": "application/json"
+          },
         });
 
         if (response.data?.success && response.data.user) {
@@ -97,7 +80,7 @@ const Navbar = () => {
           setUser(null);
         }
       } catch (error) {
-        // If 401/403, user is not authenticated
+        console.log('User fetch error:', error.response?.status);
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -107,7 +90,7 @@ const Navbar = () => {
     fetchUser();
   }, []);
 
-  // Fetch latest blogs for notifications - FIXED
+  // Fetch latest blogs for notifications
   const fetchLatestBlogs = async () => {
     if (!user) return; // Only fetch if user is logged in
     
@@ -119,25 +102,21 @@ const Navbar = () => {
         withCredentials: true,
       });
 
-
       if (response.data?.success && response.data.blogs) {
-        
         // Filter out current user's blogs and get latest 5
         const otherUsersBlogs = response.data.blogs
           .filter(blog => {
             const isOtherUser = blog.createdBy._id !== user._id;
-            // console.log(`Blog "${blog.title}" by ${blog.createdBy._id} - Include: ${isOtherUser}`);
             return isOtherUser;
           })
-          .slice(0, 5); // Increased to 5 for better visibility
-          
+          .slice(0, 5);
 
         setLatestBlogs(otherUsersBlogs);
       } else {
-
         setLatestBlogs([]);
       }
     } catch (error) {
+      console.log('Notifications fetch error:', error);
       setLatestBlogs([]);
     } finally {
       setNotificationLoading(false);
@@ -158,7 +137,6 @@ const Navbar = () => {
     if (!user) return;
 
     const interval = setInterval(() => {
-      console.log("Auto-refreshing notifications...");
       fetchLatestBlogs();
     }, 30000); // 30 seconds
 
@@ -244,7 +222,6 @@ const Navbar = () => {
   const handleNotificationClick = () => {
     setIsNotificationOpen(!isNotificationOpen);
     if (!isNotificationOpen && user) {
-      console.log("Opening notifications, refreshing blogs...");
       fetchLatestBlogs(); // Refresh blogs when opening
     }
   };
@@ -459,7 +436,7 @@ const Navbar = () => {
                                   <div className="flex items-center space-x-2 mb-1">
                                     <UserIcon className="h-3 w-3 text-purple-500" />
                                     <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
-                                      {blog.createdBy.fullName || blog.createdBy.name}
+                                      {blog.createdBy.name}
                                     </span>
                                     <span className="text-xs text-gray-500 dark:text-gray-400">
                                       posted a new blog
@@ -520,7 +497,7 @@ const Navbar = () => {
                       </div>
                       <div className="hidden xl:block text-left">
                         <p className="text-sm font-semibold text-gray-900 dark:text-white max-w-24 truncate">
-                          {user?.fullName || user?.name || "User"}
+                          {user?.name || "User"}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
                           Writer
@@ -546,7 +523,7 @@ const Navbar = () => {
                             />
                             <div>
                               <p className="font-semibold text-gray-900 dark:text-white">
-                                {user?.fullName || user?.name}
+                                {user?.name}
                               </p>
                               <p className="text-sm text-gray-500 dark:text-gray-400">
                                 {user?.email}
@@ -707,7 +684,7 @@ const Navbar = () => {
                       <ProfileAvatar user={user} />
                       <div>
                         <p className="font-semibold text-gray-900 dark:text-white">
-                          {user?.fullName || user?.name}
+                          {user?.name}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                           Writer
@@ -791,4 +768,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-

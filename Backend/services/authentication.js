@@ -10,7 +10,6 @@ function createTokenForUser(user){
         _id:user._id,
         name:user.fullName,
         email:user.email,
-        ProfileUrl:user.ProfileUrl,
         role : user.role,
     };
     const token = jwt.sign(payload,secret);

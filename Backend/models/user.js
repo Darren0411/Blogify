@@ -12,7 +12,6 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true }, // normalize at set
     salt: { type: String },
     password: { type: String, required: true },
-    ProfileUrl: { type: String, default: '/images/default.webp' },
     role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
     savedBlogs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Blog' }],
     likedBlogs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Blog' }]

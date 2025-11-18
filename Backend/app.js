@@ -20,64 +20,74 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Database Connection
-mongoose
-  .connect(process.env.MONGO_URL, { dbName: 'Blogify' })
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('Mongo connection error:', err));
-
-
-// trust proxy for secure cookies behind Render's proxy
+// Trust proxy for secure cookies behind Render's proxy
 app.set('trust proxy', 1);
 
 const allowedOrigins = [
-  'http://localhost:5173',                       // local dev
-  'https://blogify-aeb9em7ez-darrens-projects-945d9eea.vercel.app',       // deployed frontend
-  'https://blogify.darrensprojects.com'          // deployed frontend custom domain
+  'http://localhost:5173',
+  'https://blogify-aeb9em7ez-darrens-projects-945d9eea.vercel.app',
+  'https://blogify.darrensprojects.com'
 ];
 
-// CORS
+// CORS Middleware - FIRST
 app.use(cors({
   origin: (origin, callback) => {
-    // allow requests like Postman/curl with no origin
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
-      return callback(new Error('Not allowed by CORS'), false);
+      console.log('CORS blocked for origin:', origin);
+      return callback(null, false);
     }
   },
-  credentials: true,            // allow cookies / credentials
+  credentials: true,
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
+// Explicit CORS headers
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
-app.options('*', cors({
-  origin: allowedOrigins,
-  credentials: true
-}));
-
-// session settings (for cross-site cookies)
+// Session
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: true,       // MUST be true in production (HTTPS)
+    secure: true,
     httpOnly: true,
-    sameSite: 'none',   // required for cross-site cookies
+    sameSite: 'none',
     maxAge: 24*60*60*1000
   }
 }));
 
-// Middleware
+// Rest of your middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(checkforAuthenticationCookie('token'));
 app.use(express.static(path.resolve('./public')));
 
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString() 
+  });
+});
 
 // Routes
 app.use('/user', userRoute);
@@ -105,10 +115,16 @@ app.get('/', async (req, res) => {
   }
 });
 
+// Database Connection
+mongoose
+  .connect(process.env.MONGO_URL, { dbName: 'Blogify' })
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('Mongo connection error:', err));
 
 const PORT = process.env.PORT || 4500;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log('Allowed CORS origins:', allowedOrigins);
 });
 
 export default app;

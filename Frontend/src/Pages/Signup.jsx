@@ -1,7 +1,14 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../utils/api";
-import { EyeIcon, EyeOffIcon, MailIcon, LockIcon, UserIcon } from "lucide-react";
+import {
+  EyeIcon,
+  EyeOffIcon,
+  MailIcon,
+  LockIcon,
+  UserIcon,
+  PenToolIcon,
+} from "lucide-react";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -41,25 +48,25 @@ const Signup = () => {
       return;
     }
 
-    console.log('📝 Attempting signup...');
+    console.log("📝 Attempting signup...");
 
     try {
-      const response = await api.post('/user/signup', {
+      const response = await api.post("/user/signup", {
         fullName: formData.fullName,
         email: formData.email,
         password: formData.password,
       });
 
-      console.log('✅ Signup response:', response.data);
+      console.log("✅ Signup response:", response.data);
 
       if (response.data.success) {
-        console.log('✅ Signup successful');
-        
+        console.log("✅ Signup successful");
+
         setTimeout(() => {
           navigate("/");
         }, 100);
       } else {
-        setError(response.data.message || 'Signup failed');
+        setError(response.data.message || "Signup failed");
       }
     } catch (err) {
       console.error("❌ Signup error:", err);
@@ -74,7 +81,21 @@ const Signup = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-4 py-12">
       <div className="max-w-md w-full">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
+                {/* Logo Section */}
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center space-x-3 group mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
+              <div className="relative bg-gradient-to-r from-purple-600 to-indigo-600 p-3 rounded-2xl">
+                <PenToolIcon className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <span className="text-3xl font-black bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 bg-clip-text text-transparent">
+              ThoughtSphere
+            </span>
+          </Link>
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 p-8 transition-colors duration-300">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
               Create Account
@@ -145,6 +166,7 @@ const Signup = () => {
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  autoComplete="new-password" 
                   className="block w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="••••••••"
                 />
@@ -176,6 +198,7 @@ const Signup = () => {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
+                  autoComplete="new-password" 
                   className="block w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="••••••••"
                 />

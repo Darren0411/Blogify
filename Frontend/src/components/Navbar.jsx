@@ -33,24 +33,38 @@ const Navbar = () => {
   const [latestBlogs, setLatestBlogs] = useState([]);
   const [notificationLoading, setNotificationLoading] = useState(false);
 
-  // Simple Profile Avatar Component - FIXED
+  // ✅ FIXED: Profile Avatar Component - Now uses fullName correctly
   const ProfileAvatar = ({
     user,
     size = "w-10 h-10",
     textSize = "text-sm",
   }) => {
-    const initials =
-      user?.name
-        ?.split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2) || "U";
+    // Get initials from fullName (backend sends fullName, not name)
+    const getInitials = () => {
+      if (!user) return "U";
+      
+      const name = user.fullName || user.name || "";
+      
+      if (!name) return "U";
+      
+      const names = name.trim().split(" ");
+      
+      if (names.length === 1) {
+        // Single name: take first 2 letters
+        return names[0].substring(0, 2).toUpperCase();
+      } else {
+        // Multiple names: take first letter of first and last name
+        const firstInitial = names[0][0];
+        const lastInitial = names[names.length - 1][0];
+        return (firstInitial + lastInitial).toUpperCase();
+      }
+    };
 
-    // Always show initials - reliable and works everywhere
+    const initials = getInitials();
+
     return (
       <div
-        className={`${size} bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold ${textSize} shadow-lg`}
+        className={`${size} bg-gradient-to-br from-purple-500 via-indigo-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold ${textSize} shadow-lg ring-2 ring-white dark:ring-gray-800`}
       >
         {initials}
       </div>
@@ -83,16 +97,14 @@ const Navbar = () => {
 
   // Fetch latest blogs for notifications
   const fetchLatestBlogs = async () => {
-    if (!user) return; // Only fetch if user is logged in
+    if (!user) return;
     
     try {
       setNotificationLoading(true);
       
-      // Use the root endpoint which returns all blogs
       const response = await api.get('/');
 
       if (response.data?.success && response.data.blogs) {
-        // Filter out current user's blogs and get latest 5
         const otherUsersBlogs = response.data.blogs
           .filter(blog => {
             const isOtherUser = blog.createdBy._id !== user._id;
@@ -112,7 +124,6 @@ const Navbar = () => {
     }
   };
 
-  // Fetch latest blogs when user is available
   useEffect(() => {
     if (user) {
       fetchLatestBlogs();
@@ -121,18 +132,16 @@ const Navbar = () => {
     }
   }, [user]);
 
-  // Auto-refresh notifications every 30 seconds when user is logged in
   useEffect(() => {
     if (!user) return;
 
     const interval = setInterval(() => {
       fetchLatestBlogs();
-    }, 30000); // 30 seconds
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [user]);
 
-  // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -141,7 +150,6 @@ const Navbar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Dark mode logic
   useEffect(() => {
     const savedMode = localStorage.getItem("darkMode");
     const isDark = savedMode === null ? true : savedMode === "true";
@@ -171,7 +179,6 @@ const Navbar = () => {
     }
   };
 
- // Logout handler
   const handleLogout = async () => {
     console.log('👋 Logging out...');
     
@@ -182,14 +189,13 @@ const Navbar = () => {
       console.error("❌ Logout error:", err);
     } finally {
       setUser(null);
-      setShowProfileMenu(false);
+      setIsProfileOpen(false);
       navigate("/");
     }
   };
 
   const isActiveRoute = (path) => location.pathname === path;
 
-  // Format date for notifications
   const formatNotificationDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -205,15 +211,13 @@ const Navbar = () => {
     }
   };
 
-  // Handle notification click
   const handleNotificationClick = () => {
     setIsNotificationOpen(!isNotificationOpen);
     if (!isNotificationOpen && user) {
-      fetchLatestBlogs(); // Refresh blogs when opening
+      fetchLatestBlogs();
     }
   };
 
-  // Show loading state briefly
   if (isLoading) {
     return (
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg">
@@ -243,7 +247,6 @@ const Navbar = () => {
             : "bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg"
         }`}
       >
-        {/* Animated gradient border */}
         <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 via-indigo-500 to-cyan-500 opacity-60"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -268,7 +271,6 @@ const Navbar = () => {
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center space-x-4">
-              {/* Navigation Links */}
               <div className="flex items-center space-x-1 bg-gray-100/50 dark:bg-gray-800/50 rounded-2xl p-1">
                 <Link
                   to="/"
@@ -282,7 +284,6 @@ const Navbar = () => {
                   <span>Home</span>
                 </Link>
 
-                {/* My Blogs button - Only show when user is logged in */}
                 {user && (
                   <Link
                     to="/my-blogs"
@@ -308,14 +309,12 @@ const Navbar = () => {
                 />
               </div>
 
-              {/* Dark/Light Mode Toggle Button */}
+              {/* Dark Mode Toggle */}
               <div className="flex items-center">
                 <button
                   onClick={toggleDarkMode}
                   className="relative p-3 rounded-2xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 group shadow-lg hover:shadow-xl border-2 border-gray-300 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500"
-                  title={
-                    isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"
-                  }
+                  title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 >
                   <div className="relative flex items-center justify-center">
                     {isDarkMode ? (
@@ -348,7 +347,7 @@ const Navbar = () => {
                     </div>
                   </Link>
 
-                  {/* Enhanced Notifications with Latest Blogs */}
+                  {/* Notifications */}
                   <div className="relative">
                     <button 
                       onClick={handleNotificationClick}
@@ -362,10 +361,8 @@ const Navbar = () => {
                       )}
                     </button>
 
-                    {/* Enhanced Notifications Dropdown */}
                     {isNotificationOpen && (
                       <div className="absolute right-0 mt-3 w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/20 py-3 z-50 opacity-100 transition-opacity duration-200 max-h-96 overflow-y-auto">
-                        {/* Enhanced Header with Refresh Button */}
                         <div className="px-6 py-3 border-b border-gray-100/50 dark:border-gray-700/50">
                           <div className="flex items-center justify-between">
                             <div>
@@ -387,7 +384,6 @@ const Navbar = () => {
                           </div>
                         </div>
 
-                        {/* Notifications Content */}
                         <div className="py-2">
                           {notificationLoading ? (
                             <div className="px-6 py-4">
@@ -411,19 +407,17 @@ const Navbar = () => {
                                 className="flex items-start space-x-3 px-6 py-3 hover:bg-purple-50 dark:hover:bg-gray-700/50 transition-all duration-200"
                                 onClick={() => setIsNotificationOpen(false)}
                               >
-                                {/* Author Avatar */}
                                 <ProfileAvatar 
                                   user={blog.createdBy} 
                                   size="w-10 h-10" 
                                   textSize="text-xs"
                                 />
                                 
-                                {/* Notification Content */}
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center space-x-2 mb-1">
                                     <UserIcon className="h-3 w-3 text-purple-500" />
                                     <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
-                                      {blog.createdBy.name}
+                                      {blog.createdBy.fullName || blog.createdBy.name}
                                     </span>
                                     <span className="text-xs text-gray-500 dark:text-gray-400">
                                       posted a new blog
@@ -454,7 +448,6 @@ const Navbar = () => {
                           )}
                         </div>
 
-                        {/* Footer */}
                         {latestBlogs.length > 0 && (
                           <div className="border-t border-gray-100/50 dark:border-gray-700/50 pt-2">
                             <Link
@@ -477,14 +470,14 @@ const Navbar = () => {
                       className="flex items-center space-x-3 p-2 hover:bg-gray-100/70 dark:hover:bg-gray-800/70 rounded-2xl transition-all duration-300 group"
                     >
                       <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full blur opacity-75"></div>
+                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
                         <div className="relative">
                           <ProfileAvatar user={user} />
                         </div>
                       </div>
                       <div className="hidden xl:block text-left">
                         <p className="text-sm font-semibold text-gray-900 dark:text-white max-w-24 truncate">
-                          {user?.name || "User"}
+                          {user?.fullName || user?.name || "User"}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
                           Writer
@@ -497,10 +490,8 @@ const Navbar = () => {
                       />
                     </button>
 
-                    {/* Profile Dropdown Menu - Simplified */}
                     {isProfileOpen && (
                       <div className="absolute right-0 mt-3 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/20 py-2 z-50 opacity-100 transition-opacity duration-200">
-                        {/* User Info Header */}
                         <div className="px-6 py-4 border-b border-gray-100/50 dark:border-gray-700/50">
                           <div className="flex items-center space-x-3">
                             <ProfileAvatar
@@ -510,7 +501,7 @@ const Navbar = () => {
                             />
                             <div>
                               <p className="font-semibold text-gray-900 dark:text-white">
-                                {user?.name}
+                                {user?.fullName || user?.name}
                               </p>
                               <p className="text-sm text-gray-500 dark:text-gray-400">
                                 {user?.email}
@@ -519,7 +510,6 @@ const Navbar = () => {
                           </div>
                         </div>
 
-                        {/* Menu Items - Only My Blogs, Saved Blogs, Sign Out */}
                         <div className="py-2">
                           <Link
                             to="/my-blogs"
@@ -540,7 +530,6 @@ const Navbar = () => {
                           </Link>
                         </div>
 
-                        {/* Sign Out */}
                         <div className="border-t border-gray-100/50 dark:border-gray-700/50 mt-2 pt-2">
                           <button
                             onClick={handleLogout}
@@ -580,9 +569,7 @@ const Navbar = () => {
               <button
                 onClick={toggleDarkMode}
                 className="p-3 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 shadow-lg border-2 border-gray-300 dark:border-gray-600"
-                title={
-                  isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"
-                }
+                title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
               >
                 {isDarkMode ? (
                   <SunIcon className="h-6 w-6 text-yellow-500" />
@@ -608,7 +595,6 @@ const Navbar = () => {
           {isMenuOpen && (
             <div className="lg:hidden border-t border-gray-100/50 dark:border-gray-700/50 py-6 opacity-100 transition-opacity duration-300">
               <div className="space-y-4">
-                {/* Mobile Search */}
                 <div className="relative mx-4">
                   <SearchIcon className="h-5 w-5 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2" />
                   <input
@@ -618,7 +604,6 @@ const Navbar = () => {
                   />
                 </div>
 
-                {/* Navigation Links */}
                 <div className="space-y-2 mx-4">
                   <Link
                     to="/"
@@ -633,35 +618,34 @@ const Navbar = () => {
                     <span className="font-medium">Home</span>
                   </Link>
 
-                  {/* My Blogs button for mobile - Only show when user is logged in */}
                   {user && (
-                    <Link
-                      to="/my-blogs"
-                      className={`flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
-                        isActiveRoute("/my-blogs")
-                          ? "bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-700"
-                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70"
-                      }`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <BookOpenIcon className="h-5 w-5" />
-                      <span className="font-medium">My Blogs</span>
-                    </Link>
-                  )}
+                    <>
+                      <Link
+                        to="/my-blogs"
+                        className={`flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
+                          isActiveRoute("/my-blogs")
+                            ? "bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-700"
+                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70"
+                        }`}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <BookOpenIcon className="h-5 w-5" />
+                        <span className="font-medium">My Blogs</span>
+                      </Link>
 
-                  {user && (
-                    <Link
-                      to="/add-blog"
-                      className={`flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
-                        isActiveRoute("/add-blog")
-                          ? "bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-700"
-                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70"
-                      }`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <PlusIcon className="h-5 w-5" />
-                      <span className="font-medium">Add Blog</span>
-                    </Link>
+                      <Link
+                        to="/add-blog"
+                        className={`flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
+                          isActiveRoute("/add-blog")
+                            ? "bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-700"
+                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70"
+                        }`}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <PlusIcon className="h-5 w-5" />
+                        <span className="font-medium">Add Blog</span>
+                      </Link>
+                    </>
                   )}
                 </div>
 
@@ -671,7 +655,7 @@ const Navbar = () => {
                       <ProfileAvatar user={user} />
                       <div>
                         <p className="font-semibold text-gray-900 dark:text-white">
-                          {user?.name}
+                          {user?.fullName || user?.name}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                           Writer
@@ -679,7 +663,6 @@ const Navbar = () => {
                       </div>
                     </div>
 
-                    {/* Mobile Menu - Simplified */}
                     <div className="space-y-2">
                       <Link
                         to="/my-blogs"
@@ -737,7 +720,6 @@ const Navbar = () => {
         </div>
       </nav>
 
-      {/* Click outside handlers */}
       {(isProfileOpen || isNotificationOpen) && (
         <div
           className="fixed inset-0 z-40"
@@ -748,7 +730,6 @@ const Navbar = () => {
         ></div>
       )}
 
-      {/* Spacer for fixed navbar */}
       <div className="h-20"></div>
     </>
   );

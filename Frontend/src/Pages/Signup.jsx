@@ -48,7 +48,6 @@ const Signup = () => {
       return;
     }
 
-    console.log("📝 Attempting signup...");
 
     try {
       const response = await api.post("/user/signup", {
@@ -57,10 +56,9 @@ const Signup = () => {
         password: formData.password,
       });
 
-      console.log("✅ Signup response:", response.data);
 
       if (response.data.success) {
-        console.log("✅ Signup successful");
+
 
         setTimeout(() => {
           navigate("/");

@@ -40,16 +40,11 @@ const Login = () => {
     setLoading(true);
     setError("");
 
-    console.log('🔐 Attempting login...');
 
     try {
       const response = await api.post('/user/signin', formData);
 
-      console.log('✅ Login response:', response.data);
-
       if (response.data.success) {
-        console.log('✅ Login successful');
-        
         setTimeout(() => {
           navigate("/");
         }, 100);

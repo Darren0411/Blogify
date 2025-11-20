@@ -77,15 +77,12 @@ const Navbar = () => {
       try {
         const response = await api.get("/user/me");
 
-        console.log("✅ Auth response:", response.data);
-
         if (response.data?.success) {
           setUser(response.data.user);
         } else {
           setUser(null);
         }
       } catch (error) {
-        console.log('User fetch error:', error.response?.status);
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -180,11 +177,9 @@ const Navbar = () => {
   };
 
   const handleLogout = async () => {
-    console.log('👋 Logging out...');
     
     try {
       await api.post("/user/logout");
-      console.log('✅ Logged out successfully');
     } catch (err) {
       console.error("❌ Logout error:", err);
     } finally {

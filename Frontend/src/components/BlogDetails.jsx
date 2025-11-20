@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import axios from "axios";
+import api from "../utils/api";
 import {
   CalendarIcon,
   UserIcon,
@@ -18,9 +18,6 @@ import {
   CheckCircleIcon,
   InfoIcon,
 } from "lucide-react";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:4500";
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -121,9 +118,7 @@ const BlogDetail = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/user/me`, {
-          withCredentials: true,
-        });
+        const response = await api.get('/user/me');
         if (response.data?.success) {
           setUser(response.data.user);
         }
@@ -146,12 +141,7 @@ const BlogDetail = () => {
     const checkSavedStatus = async () => {
       if (user && id) {
         try {
-          const response = await axios.get(
-            `${API_BASE_URL}/blog/${id}/is-saved`,
-            {
-              withCredentials: true,
-            }
-          );
+          const response = await api.get(`/blog/${id}/is-saved`);
           if (response.data?.success) {
             setIsSaved(response.data.saved);
           }
@@ -168,12 +158,7 @@ const BlogDetail = () => {
     const checkLikedStatus = async () => {
       if (user && id) {
         try {
-          const response = await axios.get(
-            `${API_BASE_URL}/blog/${id}/is-liked`,
-            {
-              withCredentials: true,
-            }
-          );
+          const response = await api.get(`/blog/${id}/is-liked`);
           if (response.data?.success) {
             setIsLiked(response.data.liked);
             setLikeCount(response.data.likes);
@@ -191,7 +176,7 @@ const BlogDetail = () => {
     const fetchBlog = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_BASE_URL}/blog/${id}`);
+        const response = await api.get(`/blog/${id}`);
 
         if (response.data?.success) {
           setBlog(response.data.blog);
@@ -223,11 +208,7 @@ const BlogDetail = () => {
     try {
       setSaveLoading(true);
 
-      const response = await axios.post(
-        `${API_BASE_URL}/blog/${id}/save`,
-        {},
-        { withCredentials: true }
-      );
+      const response = await api.post(`/blog/${id}/save`, {});
 
       if (response.data?.success) {
         setIsSaved(response.data.saved);
@@ -268,10 +249,9 @@ const BlogDetail = () => {
 
     try {
       setCommentLoading(true);
-      const response = await axios.post(
-        `${API_BASE_URL}/blog/${id}/comments`,
-        { content: commentContent },
-        { withCredentials: true }
+      const response = await api.post(
+        `/blog/${id}/comments`,
+        { content: commentContent }
       );
 
       if (response.data?.success) {
@@ -312,11 +292,7 @@ const BlogDetail = () => {
       setIsLiked(newLikedState);
       setLikeCount(newLikeCount);
 
-      const response = await axios.post(
-        `${API_BASE_URL}/blog/${id}/like`,
-        {},
-        { withCredentials: true }
-      );
+      const response = await api.post(`/blog/${id}/like`, {});
 
       if (response.data?.success) {
         // Update with actual server response

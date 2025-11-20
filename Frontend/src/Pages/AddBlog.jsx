@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 import Navbar from '../components/Navbar';
 import { 
   PlusIcon, 
@@ -17,8 +17,6 @@ import {
   InfoIcon
 } from 'lucide-react';
 import Footer from '../components/Footer';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4500';
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -102,9 +100,7 @@ const AddBlog = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/user/me`, {
-          withCredentials: true,
-        });
+        const response = await api.get('/user/me');
         if (response.data?.success) {
           setUser(response.data.user);
         } else {
@@ -229,11 +225,10 @@ const AddBlog = () => {
       
 
       // Make API call to create blog
-      const response = await axios.post(
-        `${API_BASE_URL}/blog`,
+      const response = await api.post(
+        '/blog',
         submitData,
         {
-          withCredentials: true,
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -510,4 +505,3 @@ const AddBlog = () => {
 };
 
 export default AddBlog;
-

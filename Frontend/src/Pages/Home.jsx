@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 import { CalendarIcon, ArrowRightIcon, SearchIcon, BookOpenIcon, FilterIcon } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4500';
 
 const Home = () => {
   const [blogs, setBlogs] = useState([]);
@@ -21,9 +19,8 @@ const Home = () => {
       try {
         setLoading(true);
         setError('');
-        const res = await axios.get(`${API_BASE_URL}/`, {
-          headers: { Accept: 'application/json' },
-          withCredentials: true
+        const res = await api.get('/', {
+          headers: { Accept: 'application/json' }
         });
         if (!cancelled) {
           setBlogs(res.data.blogs || []);

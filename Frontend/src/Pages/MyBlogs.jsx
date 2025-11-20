@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 import { 
   BookOpenIcon, 
   CalendarIcon, 
@@ -10,8 +10,6 @@ import {
   MessageCircleIcon
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4500';
 
 const MyBlogs = () => {
   const navigate = useNavigate();
@@ -38,9 +36,7 @@ const MyBlogs = () => {
     const fetchMyBlogs = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_BASE_URL}/blog/my-blogs`, {
-          withCredentials: true,
-        });
+        const response = await api.get('/blog/my-blogs');
 
         if (response.data?.success) {
           setMyBlogs(response.data.blogs);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 import { 
   BookmarkIcon, 
   CalendarIcon, 
@@ -9,8 +9,6 @@ import {
   ArrowLeftIcon,
   TrashIcon
 } from 'lucide-react';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4500';
 
 const SavedBlogs = () => {
   const navigate = useNavigate();
@@ -37,9 +35,7 @@ const SavedBlogs = () => {
     const fetchSavedBlogs = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_BASE_URL}/blog/saved`, {
-          withCredentials: true,
-        });
+        const response = await api.get('/blog/saved');
 
         if (response.data?.success) {
           setSavedBlogs(response.data.savedBlogs);
@@ -64,11 +60,7 @@ const SavedBlogs = () => {
   // Remove from saved
   const handleUnsave = async (blogId) => {
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/blog/${blogId}/save`,
-        {},
-        { withCredentials: true }
-      );
+      const response = await api.post(`/blog/${blogId}/save`, {});
 
       if (response.data?.success) {
         setSavedBlogs(prev => prev.filter(blog => blog._id !== blogId));

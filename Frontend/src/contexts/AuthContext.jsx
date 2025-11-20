@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import axios from "axios";
+import api from "../utils/api";
 
 const AuthContext = createContext();
 
@@ -11,10 +11,7 @@ export const AuthProvider = ({ children }) => {
     // Fetch user details once on mount
     const fetchUser = async () => {
       try {
-        const res = await axios.get(
-          `${import.meta.env.VITE_API_BASE_URL || "http://localhost:4500"}/user/me`,
-          { withCredentials: true }
-        );
+        const res = await api.get('/user/me');
         if (res.data?.success) setUser(res.data.user);
         else setUser(null);
       } catch {

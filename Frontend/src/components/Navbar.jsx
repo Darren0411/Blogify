@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
+import api from "../utils/api";
 import {
   PenToolIcon,
   HomeIcon,
@@ -19,9 +19,6 @@ import {
   UserIcon,
   RefreshCwIcon,
 } from "lucide-react";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:4500";
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -64,19 +61,13 @@ const Navbar = () => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        // Only fetch from backend using cookies
-        const response = await axios.get(`${API_BASE_URL}/user/me`, {
-          withCredentials: true,
-          headers: { 
-            Accept: "application/json",
-            "Content-Type": "application/json"
-          },
-        });
+        const response = await api.get("/user/me");
 
-        if (response.data?.success && response.data.user) {
+        console.log("✅ Auth response:", response.data);
+
+        if (response.data?.success) {
           setUser(response.data.user);
         } else {
-          // Clear user if no valid response
           setUser(null);
         }
       } catch (error) {
@@ -98,9 +89,7 @@ const Navbar = () => {
       setNotificationLoading(true);
       
       // Use the root endpoint which returns all blogs
-      const response = await axios.get(`${API_BASE_URL}/`, {
-        withCredentials: true,
-      });
+      const response = await api.get('/');
 
       if (response.data?.success && response.data.blogs) {
         // Filter out current user's blogs and get latest 5
@@ -182,22 +171,20 @@ const Navbar = () => {
     }
   };
 
+ // Logout handler
   const handleLogout = async () => {
+    console.log('👋 Logging out...');
+    
     try {
-      await axios.post(
-        `${API_BASE_URL}/user/logout`,
-        {},
-        { withCredentials: true }
-      );
-    } catch (e) {
-      // silent fail - cookie might already be cleared
+      await api.post("/user/logout");
+      console.log('✅ Logged out successfully');
+    } catch (err) {
+      console.error("❌ Logout error:", err);
+    } finally {
+      setUser(null);
+      setShowProfileMenu(false);
+      navigate("/");
     }
-
-    // Clear user state only
-    setUser(null);
-    setLatestBlogs([]);
-    navigate("/");
-    setIsProfileOpen(false);
   };
 
   const isActiveRoute = (path) => location.pathname === path;

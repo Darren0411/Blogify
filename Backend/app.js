@@ -6,7 +6,7 @@ import path from 'path';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import cookieParser from 'cookie-parser';
-import session from 'express-session';
+import { fileURLToPath } from 'url';
 
 import userRoute from './routes/user.js';
 import blogRoute from './routes/blog.js';
@@ -14,109 +14,93 @@ import './models/user.js';
 import { checkforAuthenticationCookie } from './middlewear/auth.js';
 import Blog from './models/blog.js';
 
-import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Trust proxy for secure cookies behind Render's proxy
+// ✅ CRITICAL: Trust proxy for Render
 app.set('trust proxy', 1);
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  'https://blogify-aeb9em7ez-darrens-projects-945d9eea.vercel.app',
-  'https://blogify.darrensprojects.com'
-];
-
-// CORS Middleware - FIRST
+// ✅ CORS Configuration - MUST be BEFORE other middleware
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) {
+      console.log('✅ Allowing request with no origin');
+      return callback(null, true);
+    }
     
-    // Allow all vercel.app subdomains and localhost
-    if (origin.includes('vercel.app') || origin.includes('localhost') || allowedOrigins.includes(origin)) {
+    // Allow Vercel and localhost
+    const allowedPatterns = [
+      /\.vercel\.app$/,
+      /localhost/,
+      /127\.0\.0\.1/
+    ];
+    
+    const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
+    
+    if (isAllowed) {
+      console.log('✅ Origin allowed:', origin);
       callback(null, true);
     } else {
-      console.log('CORS blocked for origin:', origin);
-      callback(null, false);
+      console.log('⚠️ Origin not whitelisted, but allowing:', origin);
+      callback(null, true);
     }
   },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,  // ✅ CRITICAL for cookies
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
+  exposedHeaders: ['Set-Cookie'],
   optionsSuccessStatus: 200
 }));
 
-// Explicit CORS headers
+// Handle preflight OPTIONS requests
+app.options('*', cors());
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// ✅ Cookie parser MUST come BEFORE auth middleware
+app.use(cookieParser());
+
+// ✅ Auth middleware - checks for 'blogify_token' cookie
+app.use(checkforAuthenticationCookie('blogify_token'));
+
+// Static files
+app.use(express.static(path.resolve('./public')));
+
+// ✅ Debug middleware (remove in production)
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin) || (origin && origin.includes('vercel.app'))) {
-    res.header('Access-Control-Allow-Origin', origin);
-  }
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+  if (req.path !== '/health') {  // Don't log health checks
+    console.log('=== REQUEST ===');
+    console.log('Method:', req.method);
+    console.log('Path:', req.path);
+    console.log('Cookies:', req.cookies);
+    console.log('User:', req.user ? req.user.email || req.user._id : 'Not authenticated');
+    console.log('===============');
   }
   next();
 });
 
-// Session - Updated cookie name
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret',
-  resave: false,
-  saveUninitialized: false,
-  name: 'blogify_session', // Changed session cookie name
-  cookie: {
-    secure: true,
-    httpOnly: true,
-    sameSite: 'none',
-    maxAge: 24*60*60*1000
-  }
-}));
-
-// Rest of your middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-// Changed from 'token' to 'blogify_token' to avoid Vercel conflicts
-app.use(checkforAuthenticationCookie('blogify_token'));
-app.use(express.static(path.resolve('./public')));
-
-// Health check with cookie debug info
+// Health check endpoint
 app.get('/health', (req, res) => {
-  console.log('Cookies received:', req.cookies);
-  console.log('Headers received:', req.headers);
-  
-  res.json({ 
+  res.status(200).json({ 
+    success: true,
     status: 'OK', 
     timestamp: new Date().toISOString(),
     cookies: Object.keys(req.cookies || {}),
-    user: req.user || null
+    user: req.user ? 'Authenticated' : 'Not authenticated',
+    trustProxy: app.get('trust proxy')
   });
-});
-
-// Debug middleware to see what's happening
-app.use((req, res, next) => {
-  console.log('=== REQUEST DEBUG ===');
-  console.log('Method:', req.method);
-  console.log('Path:', req.path);
-  console.log('Cookies:', req.cookies);
-  console.log('Authorization header:', req.headers.authorization);
-  console.log('User:', req.user);
-  console.log('=====================');
-  next();
 });
 
 // Routes
 app.use('/user', userRoute);
 app.use('/blog', blogRoute);
 
-// Fetch all blogs
+// Root endpoint - Get all blogs
 app.get('/', async (req, res) => {
   try {
     const blogs = await Blog.find({})
@@ -134,21 +118,54 @@ app.get('/', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch blogs',
+      error: error.message
     });
   }
 });
 
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.originalUrl} not found`
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
 // Database Connection
 mongoose
-  .connect(process.env.MONGO_URL, { dbName: 'Blogify' })
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('Mongo connection error:', err));
+  .connect(process.env.MONGO_URL, { 
+    dbName: 'Blogify',
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  })
+  .then(() => {
+    console.log('✅ MongoDB connected successfully');
+    console.log('📊 Database:', mongoose.connection.name);
+  })
+  .catch((err) => {
+    console.error('❌ MongoDB connection error:', err);
+    process.exit(1);
+  });
 
+// Start server
 const PORT = process.env.PORT || 4500;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log('Allowed CORS origins:', allowedOrigins);
-  console.log('Using cookie name: blogify_token');
+const HOST = '0.0.0.0';
+
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 Server running on http://${HOST}:${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🍪 Cookie name: blogify_token`);
+  console.log(`🔒 Trust proxy: ${app.get('trust proxy')}`);
 });
 
 export default app;

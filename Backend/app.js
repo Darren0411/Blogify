@@ -22,16 +22,19 @@ const app = express();
 // ✅ CRITICAL: Trust proxy for Render
 app.set('trust proxy', 1);
 
-// ✅ CORS Configuration - MUST be BEFORE other middleware
+console.log('🌍 Environment:', process.env.NODE_ENV);
+console.log('🔧 Trust proxy:', app.get('trust proxy'));
+
+// ✅ CORS Configuration with detailed logging
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+    console.log('📍 Request origin:', origin);
+    
     if (!origin) {
-      console.log('✅ Allowing request with no origin');
+      console.log('✅ No origin - allowing (same-origin or tool)');
       return callback(null, true);
     }
     
-    // Allow Vercel and localhost
     const allowedPatterns = [
       /\.vercel\.app$/,
       /localhost/,
@@ -44,47 +47,45 @@ app.use(cors({
       console.log('✅ Origin allowed:', origin);
       callback(null, true);
     } else {
-      console.log('⚠️ Origin not whitelisted, but allowing:', origin);
+      console.log('⚠️ Origin not whitelisted, allowing anyway:', origin);
       callback(null, true);
     }
   },
-  credentials: true,  // ✅ CRITICAL for cookies
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
   exposedHeaders: ['Set-Cookie'],
   optionsSuccessStatus: 200
 }));
 
-// Handle preflight OPTIONS requests
 app.options('*', cors());
 
-// Body parsing middleware
+// Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ✅ Cookie parser MUST come BEFORE auth middleware
+// ✅ Cookie parser
 app.use(cookieParser());
 
-// ✅ Auth middleware - checks for 'blogify_token' cookie
+// Debug middleware
+app.use((req, res, next) => {
+  console.log('=== REQUEST ===');
+  console.log('Method:', req.method);
+  console.log('Path:', req.path);
+  console.log('Origin:', req.get('origin'));
+  console.log('Cookies received:', Object.keys(req.cookies || {}));
+  console.log('Has blogify_token:', !!req.cookies?.blogify_token);
+  console.log('===============');
+  next();
+});
+
+// ✅ Auth middleware
 app.use(checkforAuthenticationCookie('blogify_token'));
 
 // Static files
 app.use(express.static(path.resolve('./public')));
 
-// ✅ Debug middleware (remove in production)
-app.use((req, res, next) => {
-  if (req.path !== '/health') {  // Don't log health checks
-    console.log('=== REQUEST ===');
-    console.log('Method:', req.method);
-    console.log('Path:', req.path);
-    console.log('Cookies:', req.cookies);
-    console.log('User:', req.user ? req.user.email || req.user._id : 'Not authenticated');
-    console.log('===============');
-  }
-  next();
-});
-
-// Health check endpoint
+// Health check
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     success: true,
@@ -100,7 +101,7 @@ app.get('/health', (req, res) => {
 app.use('/user', userRoute);
 app.use('/blog', blogRoute);
 
-// Root endpoint - Get all blogs
+// Root endpoint
 app.get('/', async (req, res) => {
   try {
     const blogs = await Blog.find({})
@@ -131,7 +132,7 @@ app.use('*', (req, res) => {
   });
 });
 
-// Error handling middleware
+// Error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(err.status || 500).json({

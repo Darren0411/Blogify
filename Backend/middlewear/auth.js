@@ -1,16 +1,14 @@
 import { validateUser } from '../services/authentication.js';
 
-/**
- * Middleware to check for authentication cookie
- * Attaches req.user if valid token exists
- * Never blocks the request - just sets req.user to null if invalid
- */
 export function checkforAuthenticationCookie(cookieName = 'blogify_token') {
   return (req, res, next) => {
+    console.log('🍪 All cookies received:', req.cookies);
+    console.log('🍪 Looking for cookie:', cookieName);
+    
     const token = req.cookies?.[cookieName];
     
     if (!token) {
-      console.log('⚠️ No token cookie found');
+      console.log('⚠️ No token cookie found in:', Object.keys(req.cookies || {}));
       req.user = null;
       return next();
     }

@@ -7,8 +7,8 @@ import AddBlog from "./Pages/AddBlog";
 import { AuthProvider } from "./contexts/AuthContext";
 import PageNotFound from "./Pages/PageNotFound";
 import BlogDetails from './components/BlogDetails';  
-import SavedBlogs from "./Pages/SavedBlogs";
-import MyBlogs from './Pages/MyBlogs';
+import SavedBlogs from "./pages/SavedBlogs";
+import MyBlogs from './pages/MyBlogs';
 
 function App() {
   return (

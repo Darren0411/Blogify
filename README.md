@@ -14,7 +14,7 @@
 
 *Create, share, and discover extraordinary stories in a vibrant community*
 
-[🚀 Live Demo](https://blogify-mds22x1up-darrens-projects-945d9eea.vercel.app/) • [📖 Features](#-features) • [🛠️ Installation](#️-installation) • [📚 API Docs](#-api-documentation)
+[🚀 Live Demo](https://blogify-ten-rouge.vercel.app/) • [📖 Features](#-features) • [🛠️ Installation](#️-installation) • [📚 API Docs](#-api-documentation)
 
 </div>
 
@@ -172,7 +172,7 @@
 ## 🎥 Demo
 
 ### Live Application
-🌐 **[Visit ThoughtSphere](https://https://blogify-ten-rouge.vercel.app/)**
+🌐 **[Visit ThoughtSphere](https://blogify-ten-rouge.vercel.app/)**
 
 ### Key Pages
 - **Home** - Browse all published blogs with search functionality
@@ -203,7 +203,7 @@ Before you begin, ensure you have the following installed:
 ### 📥 Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/thoughtsphere.git
+git clone https://github.com/Darren0411/Blogify.git
 cd thoughtsphere
 ```
 

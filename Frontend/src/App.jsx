@@ -1,14 +1,14 @@
 import "./App.css";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import Home from "./Pages/Home";
-import Login from "./Pages/Login";
-import Signup from "./Pages/Signup";
-import AddBlog from "./Pages/AddBlog";
-import { AuthProvider } from "./contexts/AuthContext";
-import PageNotFound from "./Pages/PageNotFound";
-import BlogDetails from './components/BlogDetails';  
-import SavedBlogs from "./pages/SavedBlogs";
-import MyBlogs from './pages/MyBlogs';
+import Home from "./Pages/Home.jsx";
+import Login from "./Pages/Login.jsx";
+import Signup from "./Pages/Signup.jsx";
+import AddBlog from "./Pages/AddBlog.jsx";
+import { AuthProvider } from "./contexts/AuthContext.jsx";
+import PageNotFound from "./Pages/PageNotFound.jsx";
+import BlogDetails from './components/BlogDetails.jsx';  
+import SavedBlogs from "./Pages/SavedBlogs.jsx";
+import MyBlogs from './Pages/MyBlogs.jsx';
 
 function App() {
   return (

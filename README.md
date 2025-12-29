@@ -172,7 +172,7 @@
 ## 🎥 Demo
 
 ### Live Application
-🌐 **[Visit ThoughtSphere](https://blogify-mds22x1up-darrens-projects-945d9eea.vercel.app/)**
+🌐 **[Visit ThoughtSphere](https://https://blogify-ten-rouge.vercel.app/)**
 
 ### Key Pages
 - **Home** - Browse all published blogs with search functionality

@@ -159,13 +159,12 @@ http://localhost:5173
 ```
 
 ---
-
 ## 🔧 Environment Variables
 
 ### **Backend (.env)**
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `MONGO_URL` | MongoDB connection string | `mongodb+srv://user:pass@cluster.mongodb.net/Blogify` |
+| `MONGO_URL` | MongoDB connection string |
 | `JWT_SECRET` | Secret key for JWT (min 32 chars) | `your_super_secret_key_here` |
 | `PORT` | Server port | `4500` |
 | `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:5173` |

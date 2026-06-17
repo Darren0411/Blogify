@@ -1,24 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import api from "../utils/api";
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import api from '../utils/api';
 import {
-  PenToolIcon,
-  HomeIcon,
-  PlusIcon,
-  LogOutIcon,
-  MenuIcon,
-  XIcon,
-  SearchIcon,
-  BellIcon,
-  BookOpenIcon,
-  ChevronDownIcon,
-  SunIcon,
-  MoonIcon,
-  BookmarkIcon,
-  ClockIcon,
-  UserIcon,
-  RefreshCwIcon,
-} from "lucide-react";
+  PenToolIcon, HomeIcon, PlusIcon, MenuIcon, XIcon,
+  SearchIcon, BellIcon, BookOpenIcon, ChevronDownIcon,
+  SunIcon, MoonIcon,
+} from 'lucide-react';
+import ProfileAvatar from './navbar/ProfileAvatar';
+import NotificationDropdown from './navbar/NotificationDropdown';
+import ProfileDropdown from './navbar/ProfileDropdown';
+import MobileMenu from './navbar/MobileMenu';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -28,93 +19,37 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [latestBlogs, setLatestBlogs] = useState([]);
   const [notificationLoading, setNotificationLoading] = useState(false);
 
-  // ✅ FIXED: Profile Avatar Component - Now uses fullName correctly
-  const ProfileAvatar = ({
-    user,
-    size = "w-10 h-10",
-    textSize = "text-sm",
-  }) => {
-    // Get initials from fullName (backend sends fullName, not name)
-    const getInitials = () => {
-      if (!user) return "U";
-      
-      const name = user.fullName || user.name || "";
-      
-      if (!name) return "U";
-      
-      const names = name.trim().split(" ");
-      
-      if (names.length === 1) {
-        // Single name: take first 2 letters
-        return names[0].substring(0, 2).toUpperCase();
-      } else {
-        // Multiple names: take first letter of first and last name
-        const firstInitial = names[0][0];
-        const lastInitial = names[names.length - 1][0];
-        return (firstInitial + lastInitial).toUpperCase();
-      }
-    };
-
-    const initials = getInitials();
-
-    return (
-      <div
-        className={`${size} bg-gradient-to-br from-purple-500 via-indigo-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold ${textSize} shadow-lg ring-2 ring-white dark:ring-gray-800`}
-      >
-        {initials}
-      </div>
-    );
-  };
-
-  // Fetch user details from cookies only
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const response = await api.get("/user/me");
-
-        if (response.data?.success) {
-          setUser(response.data.user);
-        } else {
-          setUser(null);
-        }
-      } catch (error) {
+        const response = await api.get('/user/me');
+        setUser(response.data?.success ? response.data.user : null);
+      } catch {
         setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchUser();
   }, []);
 
-  // Fetch latest blogs for notifications
   const fetchLatestBlogs = async () => {
     if (!user) return;
-    
     try {
       setNotificationLoading(true);
-      
       const response = await api.get('/');
-
       if (response.data?.success && response.data.blogs) {
-        const otherUsersBlogs = response.data.blogs
-          .filter(blog => {
-            const isOtherUser = blog.createdBy._id !== user._id;
-            return isOtherUser;
-          })
-          .slice(0, 5);
-
-        setLatestBlogs(otherUsersBlogs);
+        setLatestBlogs(
+          response.data.blogs.filter(b => b.createdBy._id !== user._id).slice(0, 5)
+        );
       } else {
         setLatestBlogs([]);
       }
-    } catch (error) {
-      console.log('Notifications fetch error:', error);
+    } catch {
       setLatestBlogs([]);
     } finally {
       setNotificationLoading(false);
@@ -122,611 +57,201 @@ const Navbar = () => {
   };
 
   useEffect(() => {
-    if (user) {
-      fetchLatestBlogs();
-    } else {
-      setLatestBlogs([]);
-    }
+    if (user) fetchLatestBlogs();
+    else setLatestBlogs([]);
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
-
-    const interval = setInterval(() => {
-      fetchLatestBlogs();
-    }, 30000);
-
+    const interval = setInterval(fetchLatestBlogs, 30000);
     return () => clearInterval(interval);
   }, [user]);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
-    const savedMode = localStorage.getItem("darkMode");
-    const isDark = savedMode === null ? true : savedMode === "true";
-
+    const savedMode = localStorage.getItem('darkMode');
+    const isDark = savedMode === null ? true : savedMode === 'true';
     setIsDarkMode(isDark);
-
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-      document.documentElement.classList.remove("light");
-    } else {
-      document.documentElement.classList.remove("dark");
-      document.documentElement.classList.add("light");
-    }
+    document.documentElement.classList.toggle('dark', isDark);
   }, []);
 
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
-    localStorage.setItem("darkMode", newMode.toString());
-
-    if (newMode) {
-      document.documentElement.classList.add("dark");
-      document.documentElement.classList.remove("light");
-    } else {
-      document.documentElement.classList.remove("dark");
-      document.documentElement.classList.add("light");
-    }
+    localStorage.setItem('darkMode', newMode.toString());
+    document.documentElement.classList.toggle('dark', newMode);
   };
 
   const handleLogout = async () => {
-    
     try {
-      await api.post("/user/logout");
-    } catch (err) {
-      console.error("❌ Logout error:", err);
+      await api.post('/user/logout');
     } finally {
       setUser(null);
       setIsProfileOpen(false);
-      navigate("/");
+      navigate('/');
     }
   };
 
   const isActiveRoute = (path) => location.pathname === path;
 
-  const formatNotificationDate = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) {
-      return "Just now";
-    } else if (diffInHours < 24) {
-      return `${diffInHours}h ago`;
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays}d ago`;
-    }
-  };
-
-  const handleNotificationClick = () => {
-    setIsNotificationOpen(!isNotificationOpen);
-    if (!isNotificationOpen && user) {
-      fetchLatestBlogs();
-    }
-  };
-
   if (isLoading) {
     return (
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <Link to="/" className="flex items-center space-x-3">
-              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-3 rounded-2xl">
-                <PenToolIcon className="h-6 w-6 text-white" />
-              </div>
-              <span className="hidden sm:block text-2xl font-black bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 bg-clip-text text-transparent">
-                ThoughtSphere
-              </span>
-            </Link>
-            <div className="animate-pulse bg-gray-300 dark:bg-gray-700 h-10 w-32 rounded-lg"></div>
+      <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
+        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <PenToolIcon className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="font-semibold text-foreground">ThoughtSphere</span>
           </div>
+          <div className="h-9 w-24 bg-secondary rounded-md animate-pulse" />
         </div>
       </nav>
     );
   }
 
   return (
-    <>
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          isScrolled
-            ? "bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl shadow-2xl border-b border-white/20 dark:border-gray-700/20"
-            : "bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg"
-        }`}
-      >
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 via-indigo-500 to-cyan-500 opacity-60"></div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            {/* Logo Section */}
-            <Link to="/" className="flex items-center space-x-3 group">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
-                <div className="relative bg-gradient-to-r from-purple-600 to-indigo-600 p-3 rounded-2xl group-hover:shadow-2xl transition-all duration-300 transform group-hover:scale-110">
-                  <PenToolIcon className="h-6 w-6 text-white" />
-                </div>
-              </div>
-              <div className="hidden sm:block">
-                <span className="text-2xl font-black bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 bg-clip-text text-transparent">
-                  ThoughtSphere
-                </span>
-                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium -mt-1">
-                  Where Ideas Come Alive
-                </p>
-              </div>
-            </Link>
-
-            {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center space-x-4">
-              <div className="flex items-center space-x-1 bg-gray-100/50 dark:bg-gray-800/50 rounded-2xl p-1">
-                <Link
-                  to="/"
-                  className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-300 ${
-                    isActiveRoute("/")
-                      ? "bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-lg"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-700/70 hover:text-purple-600"
-                  }`}
-                >
-                  <HomeIcon className="h-4 w-4" />
-                  <span>Home</span>
-                </Link>
-
-                {user && (
-                  <Link
-                    to="/my-blogs"
-                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-300 ${
-                      isActiveRoute("/my-blogs")
-                        ? "bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-lg"
-                        : "text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-700/70 hover:text-purple-600"
-                    }`}
-                  >
-                    <BookOpenIcon className="h-4 w-4" />
-                    <span>My Blogs</span>
-                  </Link>
-                )}
-              </div>
-
-              {/* Search Bar */}
-              <div className="relative w-64">
-                <SearchIcon className="h-5 w-5 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="w-full pl-12 pr-4 py-3 bg-gray-100/50 dark:bg-gray-800/50 border-0 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white font-medium transition-all"
-                />
-              </div>
-
-              {/* Dark Mode Toggle */}
-              <div className="flex items-center">
-                <button
-                  onClick={toggleDarkMode}
-                  className="relative p-3 rounded-2xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 group shadow-lg hover:shadow-xl border-2 border-gray-300 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500"
-                  title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                >
-                  <div className="relative flex items-center justify-center">
-                    {isDarkMode ? (
-                      <SunIcon className="h-6 w-6 text-yellow-500 group-hover:rotate-90 group-hover:scale-110 transition-all duration-300" />
-                    ) : (
-                      <MoonIcon className="h-6 w-6 text-gray-700 group-hover:text-indigo-600 group-hover:rotate-12 group-hover:scale-110 transition-all duration-300" />
-                    )}
-                  </div>
-                  <div
-                    className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white dark:border-gray-800 transition-all duration-300 ${
-                      isDarkMode
-                        ? "bg-indigo-500 shadow-indigo-200"
-                        : "bg-yellow-400 shadow-yellow-200"
-                    } shadow-lg`}
-                  ></div>
-                </button>
-              </div>
-
-              {user ? (
-                <div className="flex items-center space-x-3">
-                  {/* Write Button */}
-                  <Link
-                    to="/add-blog"
-                    className="group relative overflow-hidden"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="relative flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 transform group-hover:scale-105 group-hover:shadow-2xl">
-                      <PlusIcon className="h-4 w-4" />
-                      <span>Write a Blog</span>
-                    </div>
-                  </Link>
-
-                  {/* Notifications */}
-                  <div className="relative">
-                    <button 
-                      onClick={handleNotificationClick}
-                      className="relative p-3 text-gray-600 dark:text-gray-300 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-gray-800 rounded-2xl transition-all duration-300 group"
-                    >
-                      <BellIcon className="h-5 w-5 group-hover:animate-pulse" />
-                      {latestBlogs.length > 0 && (
-                        <span className="absolute -top-1 -right-1 h-5 w-5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full flex items-center justify-center font-bold animate-bounce">
-                          {latestBlogs.length}
-                        </span>
-                      )}
-                    </button>
-
-                    {isNotificationOpen && (
-                      <div className="absolute right-0 mt-3 w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/20 py-3 z-50 opacity-100 transition-opacity duration-200 max-h-96 overflow-y-auto">
-                        <div className="px-6 py-3 border-b border-gray-100/50 dark:border-gray-700/50">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="font-semibold text-gray-900 dark:text-white">
-                                Latest Blogs
-                              </h3>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Recent posts from other writers
-                              </p>
-                            </div>
-                            <button
-                              onClick={fetchLatestBlogs}
-                              disabled={notificationLoading}
-                              className="p-2 text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 transition-colors rounded-lg hover:bg-purple-50 dark:hover:bg-gray-700"
-                              title="Refresh notifications"
-                            >
-                              <RefreshCwIcon className={`h-4 w-4 ${notificationLoading ? 'animate-spin' : ''}`} />
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="py-2">
-                          {notificationLoading ? (
-                            <div className="px-6 py-4">
-                              <div className="animate-pulse space-y-3">
-                                {[...Array(3)].map((_, i) => (
-                                  <div key={i} className="flex space-x-3">
-                                    <div className="w-10 h-10 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-                                    <div className="flex-1 space-y-2">
-                                      <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div>
-                                      <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-1/2"></div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : latestBlogs.length > 0 ? (
-                            latestBlogs.map((blog) => (
-                              <Link
-                                key={blog._id}
-                                to={`/blog/${blog._id}`}
-                                className="flex items-start space-x-3 px-6 py-3 hover:bg-purple-50 dark:hover:bg-gray-700/50 transition-all duration-200"
-                                onClick={() => setIsNotificationOpen(false)}
-                              >
-                                <ProfileAvatar 
-                                  user={blog.createdBy} 
-                                  size="w-10 h-10" 
-                                  textSize="text-xs"
-                                />
-                                
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center space-x-2 mb-1">
-                                    <UserIcon className="h-3 w-3 text-purple-500" />
-                                    <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
-                                      {blog.createdBy.fullName || blog.createdBy.name}
-                                    </span>
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                                      posted a new blog
-                                    </span>
-                                  </div>
-                                  
-                                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate mb-1">
-                                    {blog.title}
-                                  </h4>
-                                  
-                                  <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400">
-                                    <ClockIcon className="h-3 w-3" />
-                                    <span>{formatNotificationDate(blog.createdAt)}</span>
-                                  </div>
-                                </div>
-                              </Link>
-                            ))
-                          ) : (
-                            <div className="px-6 py-8 text-center">
-                              <BellIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                                No new blogs to show
-                              </p>
-                              <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">
-                                Check back later for updates
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        {latestBlogs.length > 0 && (
-                          <div className="border-t border-gray-100/50 dark:border-gray-700/50 pt-2">
-                            <Link
-                              to="/"
-                              className="block px-6 py-3 text-center text-sm font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-gray-700/50 transition-all duration-200"
-                              onClick={() => setIsNotificationOpen(false)}
-                            >
-                              View All Blogs
-                            </Link>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Profile Dropdown */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setIsProfileOpen(!isProfileOpen)}
-                      className="flex items-center space-x-3 p-2 hover:bg-gray-100/70 dark:hover:bg-gray-800/70 rounded-2xl transition-all duration-300 group"
-                    >
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="relative">
-                          <ProfileAvatar user={user} />
-                        </div>
-                      </div>
-                      <div className="hidden xl:block text-left">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white max-w-24 truncate">
-                          {user?.fullName || user?.name || "User"}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Writer
-                        </p>
-                      </div>
-                      <ChevronDownIcon
-                        className={`h-4 w-4 text-gray-400 transition-transform duration-300 ${
-                          isProfileOpen ? "rotate-180" : ""
-                        }`}
-                      />
-                    </button>
-
-                    {isProfileOpen && (
-                      <div className="absolute right-0 mt-3 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/20 py-2 z-50 opacity-100 transition-opacity duration-200">
-                        <div className="px-6 py-4 border-b border-gray-100/50 dark:border-gray-700/50">
-                          <div className="flex items-center space-x-3">
-                            <ProfileAvatar
-                              user={user}
-                              size="w-12 h-12"
-                              textSize="text-base"
-                            />
-                            <div>
-                              <p className="font-semibold text-gray-900 dark:text-white">
-                                {user?.fullName || user?.name}
-                              </p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-                                {user?.email}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="py-2">
-                          <Link
-                            to="/my-blogs"
-                            className="flex items-center space-x-3 px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-gray-700 hover:text-purple-600 transition-all duration-200"
-                            onClick={() => setIsProfileOpen(false)}
-                          >
-                            <BookOpenIcon className="h-5 w-5" />
-                            <span className="font-medium">My Blogs</span>
-                          </Link>
-
-                          <Link
-                            to="/saved-blogs"
-                            className="flex items-center space-x-3 px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-gray-700 hover:text-purple-600 transition-all duration-200"
-                            onClick={() => setIsProfileOpen(false)}
-                          >
-                            <BookmarkIcon className="h-5 w-5" />
-                            <span className="font-medium">Saved Blogs</span>
-                          </Link>
-                        </div>
-
-                        <div className="border-t border-gray-100/50 dark:border-gray-700/50 mt-2 pt-2">
-                          <button
-                            onClick={handleLogout}
-                            className="flex items-center space-x-3 px-6 py-3 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 w-full text-left"
-                          >
-                            <LogOutIcon className="h-5 w-5" />
-                            <span className="font-medium">Sign Out</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-4">
-                  <Link
-                    to="/login"
-                    className="text-gray-700 dark:text-gray-300 hover:text-purple-600 transition-colors font-semibold px-4 py-2 hover:bg-purple-50 dark:hover:bg-gray-800 rounded-xl"
-                  >
-                    Sign In
-                  </Link>
-                  <Link to="/signup" className="group relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="relative bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 text-white px-8 py-3 rounded-2xl font-bold transition-all duration-300 transform group-hover:scale-105 group-hover:shadow-2xl hover:shadow-pink-500/25">
-                      <span className="relative z-10 text-white">
-                        Get Started
-                      </span>
-                      <div className="absolute inset-0 -top-2 -left-2 w-6 h-full bg-white/40 transform -skew-x-12 group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
-                    </div>
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            {/* Mobile menu button & Dark mode */}
-            <div className="lg:hidden flex items-center space-x-3">
-              <button
-                onClick={toggleDarkMode}
-                className="p-3 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 shadow-lg border-2 border-gray-300 dark:border-gray-600"
-                title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              >
-                {isDarkMode ? (
-                  <SunIcon className="h-6 w-6 text-yellow-500" />
-                ) : (
-                  <MoonIcon className="h-6 w-6 text-gray-700" />
-                )}
-              </button>
-
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-3 text-gray-600 dark:text-gray-300 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-gray-800 rounded-2xl transition-all duration-300"
-              >
-                {isMenuOpen ? (
-                  <XIcon className="h-6 w-6" />
-                ) : (
-                  <MenuIcon className="h-6 w-6" />
-                )}
-              </button>
-            </div>
+    <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
+      <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <PenToolIcon className="h-4 w-4 text-primary-foreground" />
           </div>
+          <span className="font-semibold text-foreground hidden sm:inline">ThoughtSphere</span>
+        </Link>
 
-          {/* Mobile Navigation */}
-          {isMenuOpen && (
-            <div className="lg:hidden border-t border-gray-100/50 dark:border-gray-700/50 py-6 opacity-100 transition-opacity duration-300">
-              <div className="space-y-4">
-                <div className="relative mx-4">
-                  <SearchIcon className="h-5 w-5 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Search articles..."
-                    className="w-full pl-12 pr-4 py-3 bg-gray-100/50 dark:bg-gray-800/50 border-0 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white"
-                  />
-                </div>
-
-                <div className="space-y-2 mx-4">
-                  <Link
-                    to="/"
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
-                      isActiveRoute("/")
-                        ? "bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-700"
-                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70"
-                    }`}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <HomeIcon className="h-5 w-5" />
-                    <span className="font-medium">Home</span>
-                  </Link>
-
-                  {user && (
-                    <>
-                      <Link
-                        to="/my-blogs"
-                        className={`flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
-                          isActiveRoute("/my-blogs")
-                            ? "bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-700"
-                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70"
-                        }`}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        <BookOpenIcon className="h-5 w-5" />
-                        <span className="font-medium">My Blogs</span>
-                      </Link>
-
-                      <Link
-                        to="/add-blog"
-                        className={`flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
-                          isActiveRoute("/add-blog")
-                            ? "bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-700"
-                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70"
-                        }`}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        <PlusIcon className="h-5 w-5" />
-                        <span className="font-medium">Add Blog</span>
-                      </Link>
-                    </>
-                  )}
-                </div>
-
-                {user ? (
-                  <div className="border-t border-gray-100/50 dark:border-gray-700/50 pt-4 mx-4">
-                    <div className="flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-2xl mb-3">
-                      <ProfileAvatar user={user} />
-                      <div>
-                        <p className="font-semibold text-gray-900 dark:text-white">
-                          {user?.fullName || user?.name}
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Writer
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Link
-                        to="/my-blogs"
-                        className="flex items-center space-x-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70 rounded-2xl transition-all duration-300"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        <BookOpenIcon className="h-5 w-5" />
-                        <span className="font-medium">My Blogs</span>
-                      </Link>
-
-                      <Link
-                        to="/saved-blogs"
-                        className="flex items-center space-x-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70 rounded-2xl transition-all duration-300"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        <BookmarkIcon className="h-5 w-5" />
-                        <span className="font-medium">Saved Blogs</span>
-                      </Link>
-
-                      <button
-                        onClick={() => {
-                          handleLogout();
-                          setIsMenuOpen(false);
-                        }}
-                        className="flex items-center space-x-3 px-4 py-3 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-2xl transition-all duration-300 w-full text-left"
-                      >
-                        <LogOutIcon className="h-5 w-5" />
-                        <span className="font-medium">Sign Out</span>
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3 mx-4 pt-4 border-t border-gray-100/50 dark:border-gray-700/50">
-                    <Link
-                      to="/login"
-                      className="block px-4 py-3 text-center text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70 rounded-2xl transition-all duration-300 font-medium"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Sign In
-                    </Link>
-                    <Link
-                      to="/signup"
-                      className="block relative overflow-hidden rounded-2xl group"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <div className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 text-white px-6 py-4 text-center font-bold shadow-xl">
-                        <span className="relative z-10">Get Started</span>
-                      </div>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </div>
+        <div className="hidden lg:flex items-center gap-2">
+          <Link
+            to="/"
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm transition-colors ${
+              isActiveRoute('/') ? 'bg-secondary text-foreground font-medium' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <HomeIcon className="h-4 w-4" />
+            Home
+          </Link>
+          {user && (
+            <Link
+              to="/my-blogs"
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm transition-colors ${
+                isActiveRoute('/my-blogs') ? 'bg-secondary text-foreground font-medium' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <BookOpenIcon className="h-4 w-4" />
+              My Blogs
+            </Link>
           )}
         </div>
-      </nav>
+
+        <div className="hidden lg:flex items-center gap-3">
+          <div className="relative w-56">
+            <SearchIcon className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search..."
+              className="w-full pl-9 pr-3 py-2 bg-secondary border-0 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring text-foreground placeholder-muted-foreground"
+            />
+          </div>
+
+          <button
+            onClick={toggleDarkMode}
+            className="w-9 h-9 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary transition-colors"
+          >
+            {isDarkMode ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
+          </button>
+
+          {user ? (
+            <>
+              <Link
+                to="/add-blog"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                <PlusIcon className="h-4 w-4" />
+                Write
+              </Link>
+
+              <div className="relative">
+                <button
+                  onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                  className="relative w-9 h-9 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary transition-colors"
+                >
+                  <BellIcon className="h-4 w-4" />
+                  {latestBlogs.length > 0 && (
+                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center font-medium">
+                      {latestBlogs.length}
+                    </span>
+                  )}
+                </button>
+                {isNotificationOpen && (
+                  <NotificationDropdown
+                    blogs={latestBlogs}
+                    loading={notificationLoading}
+                    onRefresh={fetchLatestBlogs}
+                    onClose={() => setIsNotificationOpen(false)}
+                  />
+                )}
+              </div>
+
+              <div className="relative">
+                <button
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className="flex items-center gap-2 p-1.5 rounded-md hover:bg-secondary transition-colors"
+                >
+                  <ProfileAvatar user={user} />
+                  <ChevronDownIcon className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isProfileOpen && (
+                  <ProfileDropdown
+                    user={user}
+                    onLogout={handleLogout}
+                    onClose={() => setIsProfileOpen(false)}
+                  />
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary rounded-md transition-colors">
+                Sign In
+              </Link>
+              <Link to="/signup" className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
+                Get Started
+              </Link>
+            </>
+          )}
+        </div>
+
+        <div className="lg:hidden flex items-center gap-2">
+          <button
+            onClick={toggleDarkMode}
+            className="w-9 h-9 flex items-center justify-center rounded-md border border-border text-muted-foreground"
+          >
+            {isDarkMode ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
+          </button>
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="w-9 h-9 flex items-center justify-center rounded-md border border-border text-foreground"
+          >
+            {isMenuOpen ? <XIcon className="h-4 w-4" /> : <MenuIcon className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      {isMenuOpen && (
+        <MobileMenu
+          user={user}
+          isActiveRoute={isActiveRoute}
+          onLogout={handleLogout}
+          onClose={() => setIsMenuOpen(false)}
+        />
+      )}
 
       {(isProfileOpen || isNotificationOpen) && (
         <div
           className="fixed inset-0 z-40"
-          onClick={() => {
-            setIsProfileOpen(false);
-            setIsNotificationOpen(false);
-          }}
-        ></div>
+          onClick={() => { setIsProfileOpen(false); setIsNotificationOpen(false); }}
+        />
       )}
-
-      <div className="h-20"></div>
-    </>
+    </nav>
   );
 };
 

@@ -319,7 +319,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Darren D'Sa**
 
 - GitHub: [@Darren0411](https://github.com/Darren0411)
-- Email: darren@example.com
+- Email: darrendsa90@gmail.com
 
 ---
 

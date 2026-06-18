@@ -52,17 +52,13 @@ const Navbar = () => {
     fetchUser();
   }, []);
 
-  const fetchLatestBlogs = async () => {
+  const fetchNotifications = async () => {
     if (!user) return;
     try {
       setNotificationLoading(true);
-      const response = await api.get("/");
-      if (response.data?.success && response.data.blogs) {
-        setLatestBlogs(
-          response.data.blogs
-            .filter((b) => b.createdBy._id !== user._id)
-            .slice(0, 5),
-        );
+      const response = await api.get("/blog/notifications/my-notifications");
+      if (response.data?.success && response.data.notifications) {
+        setLatestBlogs(response.data.notifications);
       } else {
         setLatestBlogs([]);
       }
@@ -74,13 +70,13 @@ const Navbar = () => {
   };
 
   useEffect(() => {
-    if (user) fetchLatestBlogs();
+    if (user) fetchNotifications();
     else setLatestBlogs([]);
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
-    const interval = setInterval(fetchLatestBlogs, 30000);
+    const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -234,17 +230,17 @@ const Navbar = () => {
                   }`}
                 >
                   <BellIcon className="h-4 w-4" />
-                  {latestBlogs.length > 0 && (
+                  {latestBlogs.filter((n) => !n.isRead).length > 0 && (
                     <span className="absolute -top-1 -right-1 h-4 w-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center font-medium">
-                      {latestBlogs.length}
+                      {latestBlogs.filter((n) => !n.isRead).length}
                     </span>
                   )}
                 </button>
                 {isNotificationOpen && (
                   <NotificationDropdown
-                    blogs={latestBlogs}
+                    notifications={latestBlogs}
                     loading={notificationLoading}
-                    onRefresh={fetchLatestBlogs}
+                    onRefresh={fetchNotifications}
                     onClose={() => setIsNotificationOpen(false)}
                   />
                 )}

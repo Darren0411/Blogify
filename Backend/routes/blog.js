@@ -4,6 +4,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import Blog from '../models/blog.js';
 import Comment from '../models/comment.js';
 import User from '../models/user.js';
+import Notification from '../models/notification.js';
 
 const router = express.Router();
 
@@ -270,7 +271,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Like/Unlike a blog - UPDATED WITH RESTRICTION
+
+// Like/Unlike a blog - UPDATED WITH NOTIFICATION
 router.post('/:id/like', async (req, res) => {
   try {
     const blogId = req.params.id;
@@ -281,7 +283,6 @@ router.post('/:id/like', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Blog not found' });
     }
 
-    // ✅ NEW: Check if user is trying to like their own blog
     if (blog.createdBy.toString() === userId.toString()) {
       return res.status(403).json({ 
         success: false, 
@@ -289,7 +290,6 @@ router.post('/:id/like', async (req, res) => {
       });
     }
 
-    const user = await User.findById(userId);
     const hasLiked = blog.likedBy.includes(userId);
 
     if (hasLiked) {
@@ -301,6 +301,14 @@ router.post('/:id/like', async (req, res) => {
       
       await User.findByIdAndUpdate(userId, {
         $pull: { likedBlogs: blogId }
+      });
+
+      // ✅ NEW: Delete the notification when unliking
+      await Notification.deleteOne({
+        recipientUserId: blog.createdBy,
+        triggerUserId: userId,
+        blogId: blogId,
+        type: "like"
       });
 
       res.json({ 
@@ -318,6 +326,15 @@ router.post('/:id/like', async (req, res) => {
       
       await User.findByIdAndUpdate(userId, {
         $addToSet: { likedBlogs: blogId }
+      });
+
+      // ✅ NEW: Create notification when liking
+      await Notification.create({
+        recipientUserId: blog.createdBy,
+        triggerUserId: userId,
+        blogId: blogId,
+        blogTitle: blog.title,
+        type: "like"
       });
 
       res.json({ 
@@ -422,7 +439,8 @@ router.get('/:id/comments', async (req, res) => {
   }
 });
 
-// Add comment to a blog - UPDATED WITH RESTRICTION
+
+// Add comment to a blog - UPDATED WITH NOTIFICATION
 router.post('/:id/comments', async (req, res) => {
   try {
     const { content } = req.body;
@@ -435,7 +453,6 @@ router.post('/:id/comments', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Blog not found' });
     }
 
-    // ✅ NEW: Check if user is trying to comment on their own blog
     if (blog.createdBy.toString() === req.user._id.toString()) {
       return res.status(403).json({ 
         success: false, 
@@ -451,6 +468,15 @@ router.post('/:id/comments', async (req, res) => {
 
     const populated = await comment.populate('createdBy', 'fullName ProfileUrl name email');
 
+    // ✅ NEW: Create notification when commenting
+    await Notification.create({
+      recipientUserId: blog.createdBy,
+      triggerUserId: req.user._id,
+      blogId: blog._id,
+      blogTitle: blog.title,
+      type: "comment"
+    });
+
     res.status(201).json({
       success: true,
       comment: populated,
@@ -461,5 +487,69 @@ router.post('/:id/comments', async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to add comment' });
   }
 });
+
+// Get notifications for current user's blogs
+router.get('/notifications/my-notifications', async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Fetch notifications where this user is the recipient (blog author)
+    const notifications = await Notification.find({ recipientUserId: userId })
+      .populate('triggerUserId', 'fullName email')
+      .populate('blogId', 'title _id')
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    res.json({ success: true, notifications });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Mark a notification as read
+router.patch('/notifications/:notificationId/read', async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+    const userId = req.user._id;
+
+    // Verify the notification belongs to this user
+    const notification = await Notification.findById(notificationId);
+    if (!notification) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
+    }
+
+    if (notification.recipientUserId.toString() !== userId.toString()) {
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Mark as read
+    notification.isRead = true;
+    await notification.save();
+
+    res.json({ success: true, message: 'Notification marked as read' });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Mark all notifications as read
+router.patch('/notifications/mark-all-read', async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    await Notification.updateMany(
+      { recipientUserId: userId, isRead: false },
+      { isRead: true }
+    );
+
+    res.json({ success: true, message: 'All notifications marked as read' });
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 
 export default router;

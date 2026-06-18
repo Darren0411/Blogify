@@ -12,7 +12,7 @@ const getInitials = (user) => {
 const ProfileAvatar = ({ user, size = 'w-9 h-9', textSize = 'text-sm' }) => {
   return (
     <div
-      className={`${size} bg-secondary text-secondary-foreground rounded-full flex items-center justify-center font-medium ${textSize}`}
+    className={`${size} bg-slate-950 dark:bg-white text-white dark:text-black rounded-full flex items-center justify-center font-bold ${textSize}`}
     >
       {getInitials(user)}
     </div>

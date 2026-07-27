@@ -48,7 +48,8 @@ const Home = () => {
   }, [blogs, searchTerm, selectedCategory]);
 
   return (
-    <div className="w-full min-h-screen bg-background">
+    // bg-transparent so the fixed Ferrofluid shows through the whole page
+    <div className="w-full min-h-screen bg-transparent">
       <Navbar />
       <HeroSection />
       <SearchFilterBar

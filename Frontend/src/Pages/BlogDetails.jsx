@@ -5,6 +5,7 @@ import { ArrowLeftIcon } from "lucide-react";
 import Toast from "../components/blogdetail/Toast";
 import BlogHeader from "../components/blogdetail/BlogHeader";
 import CommentsSection from "../components/blogdetail/CommentsSection";
+import ChatbotWidget from "../components/ChatbotWidget"; 
 
 const BlogDetail = () => {
   const { id } = useParams();
@@ -279,6 +280,12 @@ const BlogDetail = () => {
           onSubmit={handleCommentSubmit}
         />
       </div>
+
+      <ChatbotWidget
+        blogId={blog._id}
+        blogContent={blog.body}
+        isAuthor={isAuthor}
+      />
     </div>
   );
 };

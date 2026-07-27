@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 
 import userRoute from './routes/user.js';
 import blogRoute from './routes/blog.js';
+import chatbotRoute from './routes/chatbot.js'; 
 import './models/user.js';
 import { checkforAuthenticationCookie } from './middlewear/auth.js';
 import Blog from './models/blog.js';
@@ -100,6 +101,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/user', userRoute);
 app.use('/blog', blogRoute);
+app.use('/chatbot', chatbotRoute); 
 
 // Root endpoint
 app.get('/', async (req, res) => {
